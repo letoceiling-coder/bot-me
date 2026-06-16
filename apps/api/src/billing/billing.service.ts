@@ -279,4 +279,44 @@ export class BillingService {
 
     return { synced: true, status: "none" };
   }
+
+  async e2eActivateSubscription(organizationId: string, userEmail: string) {
+    const secret = this.config.get<string>("E2E_TEST_SECRET");
+    if (!secret) {
+      throw new BadRequestException("E2E activation disabled");
+    }
+
+    const normalized = userEmail.toLowerCase();
+    if (
+      !normalized.startsWith("e2e-") &&
+      !normalized.includes("+e2e@") &&
+      !normalized.endsWith("@botme-test.local")
+    ) {
+      throw new BadRequestException("Not an E2E test account");
+    }
+
+    const org = await this.prisma.organization.findUniqueOrThrow({
+      where: { id: organizationId },
+    });
+
+    if (org.subscriptionStatus === "active") {
+      return { ok: true, status: "active", already: true };
+    }
+
+    const tariffSlug =
+      org.plan && org.plan !== "none" ? org.plan : "start";
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 30);
+
+    await this.prisma.organization.update({
+      where: { id: organizationId },
+      data: {
+        plan: tariffSlug,
+        subscriptionStatus: "active",
+        subscriptionExpiresAt: expiresAt,
+      },
+    });
+
+    return { ok: true, status: "active" };
+  }
 }

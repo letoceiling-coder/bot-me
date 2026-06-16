@@ -49,9 +49,22 @@ npm run test --workspace=@botme/api
 npx playwright test -c e2e/playwright.config.ts
 ```
 
-## VK / MAX (stubs)
+## VK / MAX integrations
 
-Adapters not implemented in v1. Schema supports integration types `vk`, `max` — see backlog S9+.
+- **VK:** Сообщество → Управление → API → Callback API. Укажите webhook URL из ЛК, secret key, строку подтверждения. Сохраните → Подключить webhook.
+- **MAX:** business.max.ru → токен бота → сохраните в ЛК → Подключить webhook (POST /subscriptions).
+
+## SMTP email
+
+Set in `.env`:
+
+- `SMTP_HOST`, `SMTP_PORT` (587), `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`
+
+Without `SMTP_HOST`, notifications stay in-app only (email logged at debug level).
+
+## E2E tests
+
+Full register→payment flow requires `E2E_TEST_SECRET` in prod `.env` and GitHub Actions secrets. Test accounts must use email `e2e-*@botme-test.local`.
 
 ## Troubleshooting
 

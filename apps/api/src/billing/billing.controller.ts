@@ -1,6 +1,8 @@
-import { Body, Controller, Get, Post, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Headers, Post, UseGuards, ForbiddenException } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { Public, CurrentUser } from "../auth/auth.decorators";
+import { PrismaService } from "../prisma/prisma.service";
 import { BillingService } from "./billing.service";
 import { UsageService } from "./usage.service";
 import { CheckoutDto } from "./billing.dto";
@@ -11,6 +13,8 @@ export class BillingController {
   constructor(
     private readonly billing: BillingService,
     private readonly usage: UsageService,
+    private readonly config: ConfigService,
+    private readonly prisma: PrismaService,
   ) {}
 
   @Get("status")
@@ -34,6 +38,27 @@ export class BillingController {
   @Post("sync")
   sync(@CurrentUser() user: { organizationId: string }) {
     return this.billing.syncPayment(user.organizationId);
+  }
+
+  @Post("e2e/activate")
+  async e2eActivate(
+    @CurrentUser() user: { userId: string; organizationId: string },
+    @Headers("x-e2e-secret") secret: string | undefined,
+  ) {
+    const expected = this.config.get<string>("E2E_TEST_SECRET");
+    if (!expected || secret !== expected) {
+      throw new ForbiddenException();
+    }
+
+    const dbUser = await this.prisma.user.findUniqueOrThrow({
+      where: { id: user.userId },
+      select: { email: true },
+    });
+
+    return this.billing.e2eActivateSubscription(
+      user.organizationId,
+      dbUser.email,
+    );
   }
 
   @Public()

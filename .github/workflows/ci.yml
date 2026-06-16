@@ -55,3 +55,4 @@ jobs:
       - run: npx playwright test -c e2e/playwright.config.ts
         env:
           E2E_BASE_URL: https://bot-me.neeklo.ru
+          E2E_TEST_SECRET: ${{ secrets.E2E_TEST_SECRET }}

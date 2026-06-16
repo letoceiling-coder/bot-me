@@ -78,3 +78,4 @@ export * from "./inbox";
 export * from "./leads";
 export * from "./notifications";
 export * from "./coach";
+export * from "./integrations";

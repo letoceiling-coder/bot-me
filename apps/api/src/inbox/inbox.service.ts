@@ -7,6 +7,8 @@ import type { InboxConversationDto, InboxMessageDto } from "@botme/shared";
 import { PrismaService } from "../prisma/prisma.service";
 import { TelegramService } from "../integrations/telegram.service";
 import { AvitoService } from "../integrations/avito.service";
+import { VkService } from "../integrations/vk.service";
+import { MaxService } from "../integrations/max.service";
 import { AuditService } from "../common/audit.service";
 import { NotificationsService } from "../notifications/notifications.service";
 
@@ -16,6 +18,8 @@ export class InboxService {
     private readonly prisma: PrismaService,
     private readonly telegram: TelegramService,
     private readonly avito: AvitoService,
+    private readonly vk: VkService,
+    private readonly max: MaxService,
     private readonly audit: AuditService,
     private readonly notifications: NotificationsService,
   ) {}
@@ -130,6 +134,10 @@ export class InboxService {
       await this.telegram.sendOutboundForConversation(organizationId, conv, content);
     } else if (conv.channel === "avito") {
       await this.avito.sendOutboundForConversation(organizationId, conv, content);
+    } else if (conv.channel === "vk") {
+      await this.vk.sendOutboundForConversation(organizationId, conv, content);
+    } else if (conv.channel === "max") {
+      await this.max.sendOutboundForConversation(organizationId, conv, content);
     } else {
       throw new BadRequestException("Канал не поддерживает исходящие сообщения");
     }

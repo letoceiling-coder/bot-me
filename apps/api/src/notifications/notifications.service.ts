@@ -1,7 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { ConfigService } from "@nestjs/config";
 import type { NotificationDto, NotificationsSummaryDto } from "@botme/shared";
 import { PrismaService } from "../prisma/prisma.service";
+import { EmailService } from "./email.service";
 
 @Injectable()
 export class NotificationsService {
@@ -9,7 +9,7 @@ export class NotificationsService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly config: ConfigService,
+    private readonly email: EmailService,
   ) {}
 
   async list(organizationId: string, userId: string): Promise<NotificationsSummaryDto> {
@@ -85,9 +85,6 @@ export class NotificationsService {
     subject: string,
     body: string,
   ) {
-    const smtpHost = this.config.get<string>("SMTP_HOST");
-    if (!smtpHost) return;
-
     const admins = await this.prisma.user.findMany({
       where: {
         organizationId,
@@ -96,8 +93,19 @@ export class NotificationsService {
       select: { email: true },
     });
 
+    if (!this.email.isConfigured()) {
+      for (const admin of admins) {
+        this.logger.debug(`[email stub] ${admin.email}: ${subject}`);
+      }
+      return;
+    }
+
+    const text = `${subject}\n\n${body}\n\n— botme`;
     for (const admin of admins) {
-      this.logger.log(`[email] ${admin.email}: ${subject} — ${body.slice(0, 120)}`);
+      const sent = await this.email.send(admin.email, subject, text);
+      if (sent) {
+        this.logger.log(`Email sent to ${admin.email}: ${subject}`);
+      }
     }
   }
 

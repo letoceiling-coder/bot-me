@@ -6,12 +6,16 @@ import { apiFetch } from "@/lib/api";
 import type {
   AssistantDto,
   AvitoIntegrationDto,
+  MaxIntegrationDto,
   TelegramIntegrationDto,
+  VkIntegrationDto,
 } from "@botme/shared";
 
 export default function IntegrationsPage() {
   const [telegram, setTelegram] = useState<TelegramIntegrationDto | null>(null);
   const [avito, setAvito] = useState<AvitoIntegrationDto | null>(null);
+  const [vk, setVk] = useState<VkIntegrationDto | null>(null);
+  const [max, setMax] = useState<MaxIntegrationDto | null>(null);
   const [assistants, setAssistants] = useState<AssistantDto[]>([]);
   const [botToken, setBotToken] = useState("");
   const [tgAssistantId, setTgAssistantId] = useState("");
@@ -19,25 +23,41 @@ export default function IntegrationsPage() {
   const [clientSecret, setClientSecret] = useState("");
   const [profileId, setProfileId] = useState("");
   const [avitoAssistantId, setAvitoAssistantId] = useState("");
+  const [vkToken, setVkToken] = useState("");
+  const [vkGroupId, setVkGroupId] = useState("");
+  const [vkConfirmCode, setVkConfirmCode] = useState("");
+  const [vkSecret, setVkSecret] = useState("");
+  const [vkAssistantId, setVkAssistantId] = useState("");
+  const [maxToken, setMaxToken] = useState("");
+  const [maxAssistantId, setMaxAssistantId] = useState("");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
   const [error, setError] = useState("");
 
   async function load() {
-    const [tg, av, list] = await Promise.all([
+    const [tg, av, vkStatus, maxStatus, list] = await Promise.all([
       apiFetch<TelegramIntegrationDto>("/integrations/telegram"),
       apiFetch<AvitoIntegrationDto>("/integrations/avito"),
+      apiFetch<VkIntegrationDto>("/integrations/vk"),
+      apiFetch<MaxIntegrationDto>("/integrations/max"),
       apiFetch<AssistantDto[]>("/assistants"),
     ]);
     setTelegram(tg);
     setAvito(av);
+    setVk(vkStatus);
+    setMax(maxStatus);
     setAssistants(list);
     if (!tgAssistantId && tg.assistantId) setTgAssistantId(tg.assistantId);
     else if (!tgAssistantId && list[0]) setTgAssistantId(list[0].id);
     if (!avitoAssistantId && av.assistantId) setAvitoAssistantId(av.assistantId);
     else if (!avitoAssistantId && list[0]) setAvitoAssistantId(list[0].id);
+    if (!vkAssistantId && vkStatus.assistantId) setVkAssistantId(vkStatus.assistantId);
+    else if (!vkAssistantId && list[0]) setVkAssistantId(list[0].id);
+    if (!maxAssistantId && maxStatus.assistantId) setMaxAssistantId(maxStatus.assistantId);
+    else if (!maxAssistantId && list[0]) setMaxAssistantId(list[0].id);
     if (!profileId && av.profileId) setProfileId(String(av.profileId));
+    if (!vkGroupId && vkStatus.groupId) setVkGroupId(String(vkStatus.groupId));
   }
 
   useEffect(() => {
@@ -195,9 +215,126 @@ export default function IntegrationsPage() {
         }}
       />
 
-      <section className="rounded-[14px] border border-dashed border-white/10 p-6 text-sm text-text-muted">
-        VK и MAX — в следующих обновлениях
-      </section>
+      <VkSection
+        vk={vk}
+        assistants={assistants}
+        accessToken={vkToken}
+        groupId={vkGroupId}
+        confirmationCode={vkConfirmCode}
+        webhookSecret={vkSecret}
+        assistantId={vkAssistantId}
+        busy={busy}
+        onAccessTokenChange={setVkToken}
+        onGroupIdChange={setVkGroupId}
+        onConfirmationCodeChange={setVkConfirmCode}
+        onWebhookSecretChange={setVkSecret}
+        onAssistantChange={setVkAssistantId}
+        onSave={async (e) => {
+          e.preventDefault();
+          setBusy(true);
+          setError("");
+          setMsg("");
+          try {
+            const next = await apiFetch<VkIntegrationDto>("/integrations/vk", {
+              method: "PUT",
+              body: JSON.stringify({
+                accessToken: vkToken.trim() || undefined,
+                groupId: vkGroupId ? Number(vkGroupId) : undefined,
+                confirmationCode: vkConfirmCode.trim() || undefined,
+                webhookSecret: vkSecret.trim() || undefined,
+                assistantId: vkAssistantId,
+              }),
+            });
+            setVk(next);
+            setVkToken("");
+            setMsg("VK: настройки сохранены");
+          } catch (err) {
+            setError(err instanceof Error ? err.message : "Ошибка");
+          } finally {
+            setBusy(false);
+          }
+        }}
+        onConnect={async () => {
+          setBusy(true);
+          setError("");
+          try {
+            setVk(await apiFetch("/integrations/vk/connect", { method: "POST" }));
+            setMsg("VK подключён — подтвердите сервер в настройках сообщества, если требуется");
+          } catch (err) {
+            setError(err instanceof Error ? err.message : "Ошибка");
+          } finally {
+            setBusy(false);
+          }
+        }}
+        onDisconnect={async () => {
+          setBusy(true);
+          setError("");
+          try {
+            setVk(await apiFetch("/integrations/vk/disconnect", { method: "POST" }));
+            setMsg("VK отключён");
+          } catch (err) {
+            setError(err instanceof Error ? err.message : "Ошибка");
+          } finally {
+            setBusy(false);
+          }
+        }}
+      />
+
+      <MaxSection
+        max={max}
+        assistants={assistants}
+        botToken={maxToken}
+        assistantId={maxAssistantId}
+        busy={busy}
+        onBotTokenChange={setMaxToken}
+        onAssistantChange={setMaxAssistantId}
+        onSave={async (e) => {
+          e.preventDefault();
+          setBusy(true);
+          setError("");
+          setMsg("");
+          try {
+            const next = await apiFetch<MaxIntegrationDto>("/integrations/max", {
+              method: "PUT",
+              body: JSON.stringify({
+                botToken: maxToken.trim() || undefined,
+                assistantId: maxAssistantId,
+              }),
+            });
+            setMax(next);
+            setMaxToken("");
+            setMsg("MAX: настройки сохранены");
+          } catch (err) {
+            setError(err instanceof Error ? err.message : "Ошибка");
+          } finally {
+            setBusy(false);
+          }
+        }}
+        onConnect={async () => {
+          setBusy(true);
+          setError("");
+          try {
+            setMax(await apiFetch("/integrations/max/connect", { method: "POST" }));
+            setMsg("MAX подключён");
+          } catch (err) {
+            setError(err instanceof Error ? err.message : "Ошибка");
+          } finally {
+            setBusy(false);
+          }
+        }}
+        onDisconnect={async () => {
+          setBusy(true);
+          setError("");
+          try {
+            setMax(await apiFetch("/integrations/max/disconnect", { method: "POST" }));
+            setMsg("MAX отключён");
+          } catch (err) {
+            setError(err instanceof Error ? err.message : "Ошибка");
+          } finally {
+            setBusy(false);
+          }
+        }}
+      />
     </div>
   );
 }
@@ -279,6 +416,217 @@ function TelegramSection({
         connected={connected}
         busy={busy}
         canConnect={Boolean(telegram?.hasToken)}
+        onConnect={onConnect}
+        onDisconnect={onDisconnect}
+      />
+    </section>
+  );
+}
+
+function VkSection({
+  vk,
+  assistants,
+  accessToken,
+  groupId,
+  confirmationCode,
+  webhookSecret,
+  assistantId,
+  busy,
+  onAccessTokenChange,
+  onGroupIdChange,
+  onConfirmationCodeChange,
+  onWebhookSecretChange,
+  onAssistantChange,
+  onSave,
+  onConnect,
+  onDisconnect,
+}: {
+  vk: VkIntegrationDto | null;
+  assistants: AssistantDto[];
+  accessToken: string;
+  groupId: string;
+  confirmationCode: string;
+  webhookSecret: string;
+  assistantId: string;
+  busy: boolean;
+  onAccessTokenChange: (v: string) => void;
+  onGroupIdChange: (v: string) => void;
+  onConfirmationCodeChange: (v: string) => void;
+  onWebhookSecretChange: (v: string) => void;
+  onAssistantChange: (v: string) => void;
+  onSave: (e: React.FormEvent) => void;
+  onConnect: () => void;
+  onDisconnect: () => void;
+}) {
+  const connected = vk?.status === "CONNECTED";
+
+  return (
+    <section className="rounded-[14px] border border-white/6 bg-surface p-6">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 className="font-semibold">ВКонтакте</h2>
+          <p className="mt-1 text-sm text-text-muted">
+            Callback API сообщества — ключ доступа и строка подтверждения
+          </p>
+        </div>
+        <StatusPulse connected={connected} label={vk?.status ?? "DISCONNECTED"} />
+      </div>
+
+      {vk?.groupName && (
+        <p className="mt-3 text-sm text-text-muted">
+          {vk.groupName}
+          {vk.groupId ? ` · ID ${vk.groupId}` : ""}
+          {vk.tokenMasked ? ` · ${vk.tokenMasked}` : ""}
+        </p>
+      )}
+      {vk?.webhookUrl && (
+        <p className="mt-2 break-all text-xs text-text-muted">
+          Webhook: {vk.webhookUrl}
+        </p>
+      )}
+      {vk?.lastError && (
+        <p className="mt-2 text-sm text-red-400">{vk.lastError}</p>
+      )}
+
+      <form onSubmit={onSave} className="mt-6 space-y-4">
+        <Field label="Ключ доступа сообщества">
+          <input
+            type="password"
+            value={accessToken}
+            onChange={(e) => onAccessTokenChange(e.target.value)}
+            placeholder={vk?.hasCredentials ? "Новый ключ" : "vk1.a...."}
+            className={inputClass}
+          />
+        </Field>
+        <Field label="ID сообщества">
+          <input
+            value={groupId}
+            onChange={(e) => onGroupIdChange(e.target.value)}
+            placeholder={vk?.groupId ? String(vk.groupId) : "123456789"}
+            className={inputClass}
+            required={!vk?.groupId}
+          />
+        </Field>
+        <Field label="Строка подтверждения (Callback API)">
+          <input
+            value={confirmationCode}
+            onChange={(e) => onConfirmationCodeChange(e.target.value)}
+            placeholder="из настроек VK → Callback API"
+            className={inputClass}
+          />
+        </Field>
+        <Field label="Secret key (секретный ключ webhook)">
+          <input
+            value={webhookSecret}
+            onChange={(e) => onWebhookSecretChange(e.target.value)}
+            placeholder="тот же, что в настройках VK"
+            className={inputClass}
+          />
+        </Field>
+        <AssistantSelect
+          assistants={assistants}
+          value={assistantId}
+          onChange={onAssistantChange}
+        />
+        <button
+          type="submit"
+          disabled={
+            busy ||
+            ((!accessToken.trim()) && !vk?.hasCredentials) ||
+            (!groupId && !vk?.groupId)
+          }
+          className={btnSecondary}
+        >
+          Сохранить
+        </button>
+      </form>
+
+      <ConnectActions
+        connected={connected}
+        busy={busy}
+        canConnect={Boolean(vk?.hasCredentials && vk.groupId)}
+        onConnect={onConnect}
+        onDisconnect={onDisconnect}
+      />
+    </section>
+  );
+}
+
+function MaxSection({
+  max,
+  assistants,
+  botToken,
+  assistantId,
+  busy,
+  onBotTokenChange,
+  onAssistantChange,
+  onSave,
+  onConnect,
+  onDisconnect,
+}: {
+  max: MaxIntegrationDto | null;
+  assistants: AssistantDto[];
+  botToken: string;
+  assistantId: string;
+  busy: boolean;
+  onBotTokenChange: (v: string) => void;
+  onAssistantChange: (v: string) => void;
+  onSave: (e: React.FormEvent) => void;
+  onConnect: () => void;
+  onDisconnect: () => void;
+}) {
+  const connected = max?.status === "CONNECTED";
+
+  return (
+    <section className="rounded-[14px] border border-white/6 bg-surface p-6">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 className="font-semibold">MAX</h2>
+          <p className="mt-1 text-sm text-text-muted">
+            Токен из business.max.ru → Чат-боты → Настроить
+          </p>
+        </div>
+        <StatusPulse connected={connected} label={max?.status ?? "DISCONNECTED"} />
+      </div>
+
+      {max?.botName && (
+        <p className="mt-3 text-sm text-text-muted">
+          Бот: {max.botName}
+          {max.tokenMasked ? ` · ${max.tokenMasked}` : ""}
+        </p>
+      )}
+      {max?.lastError && (
+        <p className="mt-2 text-sm text-red-400">{max.lastError}</p>
+      )}
+
+      <form onSubmit={onSave} className="mt-6 space-y-4">
+        <Field label="Токен бота">
+          <input
+            type="password"
+            value={botToken}
+            onChange={(e) => onBotTokenChange(e.target.value)}
+            placeholder={max?.hasToken ? "Новый токен" : "access_token..."}
+            className={inputClass}
+          />
+        </Field>
+        <AssistantSelect
+          assistants={assistants}
+          value={assistantId}
+          onChange={onAssistantChange}
+        />
+        <button
+          type="submit"
+          disabled={busy || (!botToken.trim() && !max?.hasToken)}
+          className={btnSecondary}
+        >
+          Сохранить
+        </button>
+      </form>
+
+      <ConnectActions
+        connected={connected}
+        busy={busy}
+        canConnect={Boolean(max?.hasToken)}
         onConnect={onConnect}
         onDisconnect={onDisconnect}
       />

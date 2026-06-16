@@ -12,6 +12,8 @@ import { IntegrationsController } from "./integrations.controller";
 import { WebhooksController } from "./webhooks.controller";
 import { TelegramService } from "./telegram.service";
 import { AvitoService } from "./avito.service";
+import { VkService } from "./vk.service";
+import { MaxService } from "./max.service";
 
 @Module({
   imports: [AgentModule, LeadsModule, NotificationsModule],
@@ -19,11 +21,13 @@ import { AvitoService } from "./avito.service";
   providers: [
     TelegramService,
     AvitoService,
+    VkService,
+    MaxService,
     CryptoService,
     WebhookDedupService,
     WebhookRateLimitService,
     WebhookRateLimitGuard,
   ],
-  exports: [TelegramService, AvitoService],
+  exports: [TelegramService, AvitoService, VkService, MaxService],
 })
 export class IntegrationsModule {}

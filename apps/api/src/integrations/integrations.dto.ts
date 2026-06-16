@@ -28,3 +28,37 @@ export class UpdateAvitoIntegrationDto {
   @IsString()
   assistantId!: string;
 }
+
+export class UpdateVkIntegrationDto {
+  @IsOptional()
+  @IsString()
+  @MinLength(10)
+  accessToken?: string;
+
+  @IsOptional()
+  @IsInt()
+  groupId?: number;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  confirmationCode?: string;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(4)
+  webhookSecret?: string;
+
+  @IsString()
+  assistantId!: string;
+}
+
+export class UpdateMaxIntegrationDto {
+  @IsOptional()
+  @IsString()
+  @MinLength(10)
+  botToken?: string;
+
+  @IsString()
+  assistantId!: string;
+}

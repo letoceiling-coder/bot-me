@@ -34,7 +34,12 @@ export class WebhookRateLimitGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean {
     const req = context.switchToHttp().getRequest();
     const orgId = req.params?.organizationId ?? "unknown";
-    const channel = req.path?.includes("avito") ? "avito" : "telegram";
+    const path = String(req.path ?? req.url ?? "");
+    let channel = "unknown";
+    if (path.includes("telegram")) channel = "telegram";
+    else if (path.includes("avito")) channel = "avito";
+    else if (path.includes("/vk/")) channel = "vk";
+    else if (path.includes("/max/")) channel = "max";
     this.limits.check(`${orgId}:${channel}`);
     return true;
   }
