@@ -1,0 +1,26 @@
+{
+  "name": "@botme/web",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3000",
+    "build": "next build",
+    "start": "next start -p 3000",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@botme/shared": "*",
+    "@botme/ui": "*",
+    "next": "^15.2.3",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.0.14",
+    "@types/node": "^22.13.10",
+    "@types/react": "^19.0.10",
+    "@types/react-dom": "^19.0.4",
+    "tailwindcss": "^4.0.14",
+    "typescript": "^5.8.2"
+  }
+}

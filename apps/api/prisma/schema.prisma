@@ -1,0 +1,222 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  OWNER
+  ADMIN
+  OPERATOR
+}
+
+enum IntegrationStatus {
+  DISCONNECTED
+  CONNECTING
+  CONNECTED
+  ERROR
+}
+
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  plan      String   @default("start")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users         User[]
+  integrations  Integration[]
+  assistants    Assistant[]
+  knowledgeBases KnowledgeBase[]
+  leads         Lead[]
+  clients       Client[]
+}
+
+model User {
+  id               String   @id @default(cuid())
+  email            String   @unique
+  passwordHash     String
+  name             String?
+  role             UserRole @default(OWNER)
+  isPlatformAdmin  Boolean  @default(false)
+  organizationId   String
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([organizationId])
+}
+
+model TariffPlan {
+  id            String   @id @default(cuid())
+  slug          String   @unique
+  name          String
+  description   String?  @db.Text
+  priceMonthly  Int      @default(0)
+  currency      String   @default("RUB")
+  features      Json     @default("[]")
+  limits        Json     @default("{}")
+  isActive      Boolean  @default(true)
+  isFeatured    Boolean  @default(false)
+  sortOrder     Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model SystemSetting {
+  key       String   @id
+  value     String   @db.Text
+  category  String
+  isSecret  Boolean  @default(false)
+  updatedAt DateTime @updatedAt
+}
+
+model Integration {
+  id             String            @id @default(cuid())
+  organizationId String
+  organization   Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  type           String
+  enabled        Boolean           @default(false)
+  credentialsEnc String?
+  status         IntegrationStatus @default(DISCONNECTED)
+  lastError      String?
+  metadata       Json?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  @@unique([organizationId, type])
+  @@index([organizationId])
+}
+
+model Assistant {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  presetId       String?
+  systemPrompt   String   @db.Text
+  modelConfig    Json?
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  knowledgeBaseId String?
+  knowledgeBase   KnowledgeBase? @relation(fields: [knowledgeBaseId], references: [id])
+
+  @@index([organizationId])
+}
+
+model KnowledgeBase {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  description    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  assistants Assistant[]
+  documents  KnowledgeDocument[]
+
+  @@index([organizationId])
+}
+
+model KnowledgeDocument {
+  id              String        @id @default(cuid())
+  knowledgeBaseId String
+  knowledgeBase   KnowledgeBase @relation(fields: [knowledgeBaseId], references: [id], onDelete: Cascade)
+  title           String
+  sourceType      String
+  s3Key           String?
+  status          String        @default("pending")
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([knowledgeBaseId])
+}
+
+model Lead {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String?
+  phone          String?
+  email          String?
+  source         String?
+  stage          String   @default("new")
+  note           String?  @db.Text
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([organizationId])
+}
+
+model Client {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  phone          String?
+  email          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([organizationId])
+}
+
+model Conversation {
+  id             String   @id @default(cuid())
+  organizationId String
+  integrationId  String?
+  externalId     String?
+  channel        String
+  status         String   @default("bot_active")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  messages Message[]
+
+  @@index([organizationId])
+  @@index([organizationId, channel])
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role           String
+  content        String       @db.Text
+  metadata       Json?
+  createdAt      DateTime     @default(now())
+
+  @@index([conversationId])
+}
+
+model Notification {
+  id             String   @id @default(cuid())
+  organizationId String
+  userId         String?
+  type           String
+  title          String
+  body           String
+  read           Boolean  @default(false)
+  createdAt      DateTime @default(now())
+
+  @@index([organizationId, userId])
+}
+
+model AuditLog {
+  id             String   @id @default(cuid())
+  organizationId String
+  userId         String
+  action         String
+  resource       String
+  metadata       Json?
+  createdAt      DateTime @default(now())
+
+  @@index([organizationId])
+}

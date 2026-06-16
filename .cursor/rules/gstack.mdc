@@ -1,0 +1,48 @@
+---
+description: Use gstack skills for all AI-assisted engineering in this project
+alwaysApply: true
+---
+
+# gstack (required)
+
+This project uses [gstack](C:/Users/dsc-2/projects/gstack) for structured AI engineering workflows.
+
+**Always prefer gstack skills over ad-hoc answers.** When a task matches a skill, read and follow that skill's `SKILL.md` step by step.
+
+## Runtime paths
+
+- Project runtime: `.cursor/skills/gstack/` (bin, browse, review assets)
+- Global skills: `~/.cursor/skills/gstack-*`
+- Source repo: `C:/Users/dsc-2/projects/gstack`
+
+## Web browsing
+
+Use **gstack-browse** for all web browsing and QA. Do not use Chrome MCP tools.
+
+Browse binary: `.cursor/skills/gstack/browse/dist/browse` (or `~/.cursor/skills/gstack/browse/dist/browse`).
+
+## Skill routing
+
+When the user's request matches a skill, invoke it. When in doubt, invoke the skill.
+
+| Request | Skill |
+|---------|-------|
+| New idea, brainstorming, "is this worth building" | gstack-office-hours |
+| Spec, GitHub issue, backlog item | gstack-spec |
+| Strategy, scope, ambition | gstack-plan-ceo-review |
+| Architecture, data flow, edge cases | gstack-plan-eng-review |
+| Design system, visual identity | gstack-design-consultation |
+| Design review of a plan | gstack-plan-design-review |
+| DX review of a plan | gstack-plan-devex-review |
+| Full review pipeline | gstack-autoplan |
+| Bug, error, broken behavior | gstack-investigate |
+| Test site, QA, "does this work" | gstack-qa |
+| Report bugs only (no fixes) | gstack-qa-only |
+| Code review, diff check | gstack-review |
+| Visual polish on live site | gstack-design-review |
+| Ship, PR, deploy | gstack-ship / gstack-land-and-deploy |
+| Save / restore progress | gstack-context-save / gstack-context-restore |
+| Security audit | gstack-cso |
+| Health check, lint/tests dashboard | gstack-health |
+
+A false positive (invoking a skill that wasn't needed) is cheaper than skipping structured workflows.
