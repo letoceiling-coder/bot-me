@@ -12,6 +12,7 @@ import { KnowledgeModule } from "./knowledge/knowledge.module";
 import { AgentModule } from "./agent/agent.module";
 import { IntegrationsModule } from "./integrations/integrations.module";
 import { InboxModule } from "./inbox/inbox.module";
+import { LeadsModule } from "./leads/leads.module";
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { InboxModule } from "./inbox/inbox.module";
     AssistantsModule,
     IntegrationsModule,
     InboxModule,
+    LeadsModule,
   ],
 })
 export class AppModule {}

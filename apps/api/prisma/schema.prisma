@@ -224,6 +224,8 @@ model Lead {
   id             String   @id @default(cuid())
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  conversationId String?
+  conversation   Conversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
   name           String?
   phone          String?
   email          String?
@@ -234,6 +236,7 @@ model Lead {
   updatedAt      DateTime @updatedAt
 
   @@index([organizationId])
+  @@index([conversationId])
 }
 
 model Client {
@@ -262,6 +265,7 @@ model Conversation {
   updatedAt      DateTime @updatedAt
 
   messages Message[]
+  leads    Lead[]
 
   @@unique([organizationId, channel, externalId])
   @@index([organizationId])

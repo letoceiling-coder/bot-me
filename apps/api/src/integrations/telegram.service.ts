@@ -8,6 +8,7 @@ import type { TelegramIntegrationDto } from "@botme/shared";
 import { PrismaService } from "../prisma/prisma.service";
 import { CryptoService } from "../common/crypto.service";
 import { AgentRuntimeService } from "../agent/agent-runtime.service";
+import { LeadsService } from "../leads/leads.service";
 
 type TelegramMetadata = {
   assistantId?: string;
@@ -22,6 +23,7 @@ export class TelegramService {
     private readonly crypto: CryptoService,
     private readonly config: ConfigService,
     private readonly agent: AgentRuntimeService,
+    private readonly leads: LeadsService,
   ) {}
 
   async getStatus(organizationId: string): Promise<TelegramIntegrationDto> {
@@ -219,6 +221,24 @@ export class TelegramService {
       },
     });
 
+    await this.leads.maybeCreateFromMessage({
+      organizationId,
+      assistantId: meta.assistantId,
+      text: message.text,
+      source: "telegram",
+      conversationId: conversation.id,
+      peerName,
+    });
+
+    await this.prisma.conversation.update({
+      where: { id: conversation.id },
+      data: { lastMessageAt: new Date(), peerName },
+    });
+
+    if (conversation.status === "human_active") {
+      return { ok: true, humanActive: true };
+    }
+
     const history = conversation.messages
       .slice()
       .reverse()
@@ -260,12 +280,35 @@ export class TelegramService {
       },
     });
 
-    await this.prisma.conversation.update({
-      where: { id: conversation.id },
-      data: { lastMessageAt: new Date(), peerName },
+    return { ok: true };
+  }
+
+  async sendOutboundForConversation(
+    organizationId: string,
+    conversation: { externalId: string | null },
+    text: string,
+  ) {
+    if (!conversation.externalId) {
+      throw new BadRequestException("Нет externalId для Telegram-диалога");
+    }
+
+    const row = await this.getIntegration(organizationId);
+    const token = this.decryptToken(row.credentialsEnc!);
+    const chatId = Number(conversation.externalId);
+    if (Number.isNaN(chatId)) {
+      throw new BadRequestException("Некорректный chat ID Telegram");
+    }
+
+    const result = await this.telegramApi(token, "sendMessage", {
+      chat_id: chatId,
+      text: text.slice(0, 4000),
     });
 
-    return { ok: true };
+    if (!result.ok) {
+      const desc =
+        (result as { description?: string }).description ?? "Ошибка отправки";
+      throw new BadRequestException(`Telegram: ${desc}`);
+    }
   }
 
   private async getIntegration(organizationId: string) {
