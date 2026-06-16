@@ -15,16 +15,17 @@ import type {
   UpdateAssistantInput,
 } from "@botme/shared";
 import { PrismaService } from "../prisma/prisma.service";
-import { SettingsAdminService } from "../admin/settings-admin.service";
-import { KnowledgeService } from "../knowledge/knowledge.service";
+import { AdminModule } from "../admin/admin.module";
+import { KnowledgeModule } from "../knowledge/knowledge.module";
+import { AgentModule } from "../agent/agent.module";
+import { AgentRuntimeService } from "../agent/agent-runtime.service";
 import { PROMPT_PRESETS, TOOL_DEFINITIONS } from "./registry-seed";
 
 @Injectable()
 export class AssistantsService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly settings: SettingsAdminService,
-    private readonly knowledge: KnowledgeService,
+    private readonly agent: AgentRuntimeService,
   ) {}
 
   async syncRegistry() {
@@ -295,87 +296,12 @@ export class AssistantsService {
     id: string,
     input: TestChatInput,
   ): Promise<TestChatResponse> {
-    const assistant = await this.findOwned(organizationId, id);
-    const apiKey = await this.settings.getOpenRouterApiKey();
-    if (!apiKey) {
-      throw new BadRequestException(
-        "OpenRouter не настроен. Администратор должен добавить API-ключ.",
-      );
-    }
-
-    const model =
-      (assistant.modelConfig as { model?: string } | null)?.model ??
-      (await this.settings.getOpenRouterDefaultModel());
-
-    const sources = assistant.knowledgeBaseId
-      ? await this.knowledge.search(
-          organizationId,
-          assistant.knowledgeBaseId,
-          input.message,
-          4,
-        )
-      : [];
-
-    const kbBlock =
-      sources.length > 0
-        ? `\n\nКонтекст из базы знаний:\n${sources
-            .map(
-              (s, i) =>
-                `[${i + 1}] ${s.documentTitle}: ${s.content.slice(0, 600)}`,
-            )
-            .join("\n\n")}`
-        : "";
-
-    const systemContent = `${assistant.systemPrompt}${kbBlock}\n\nОтвечай только на основе контекста и инструкций. Если данных нет — честно скажи об этом.`;
-
-    const messages: Array<{ role: string; content: string }> = [
-      { role: "system", content: systemContent },
-      ...(input.history ?? []).map((m) => ({
-        role: m.role,
-        content: m.content,
-      })),
-      { role: "user", content: input.message },
-    ];
-
-    const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-        "HTTP-Referer": "https://bot-me.neeklo.ru",
-        "X-Title": "botme",
-      },
-      body: JSON.stringify({
-        model,
-        messages,
-        temperature:
-          (assistant.modelConfig as { temperature?: number } | null)
-            ?.temperature ?? 0.7,
-      }),
+    return this.agent.generateReply({
+      organizationId,
+      assistantId: id,
+      userMessage: input.message,
+      history: input.history,
     });
-
-    if (!res.ok) {
-      const errText = await res.text();
-      throw new BadRequestException(
-        `OpenRouter: ${errText.slice(0, 300) || res.statusText}`,
-      );
-    }
-
-    const data = (await res.json()) as {
-      choices?: Array<{ message?: { content?: string } }>;
-    };
-    const reply =
-      data.choices?.[0]?.message?.content?.trim() ||
-      "Не удалось получить ответ модели.";
-
-    return {
-      reply,
-      sources: sources.map((s) => ({
-        documentTitle: s.documentTitle,
-        excerpt: s.excerpt,
-      })),
-      model,
-    };
   }
 
   private async assertKnowledgeBase(organizationId: string, baseId: string) {

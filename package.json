@@ -9,7 +9,7 @@
     "dev": "npm run dev --workspace=@botme/web & npm run dev --workspace=@botme/api",
     "dev:web": "npm run dev --workspace=@botme/web",
     "dev:api": "npm run dev --workspace=@botme/api",
-    "build": "npm run build --workspaces --if-present",
+    "build": "npm run build --workspace=@botme/shared && npm run build --workspace=@botme/api && npm run build --workspace=@botme/web",
     "lint": "npm run lint --workspaces --if-present",
     "db:generate": "npm run db:generate --workspace=@botme/api",
     "db:migrate": "npm run db:migrate --workspace=@botme/api",

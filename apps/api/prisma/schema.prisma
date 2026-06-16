@@ -255,14 +255,18 @@ model Conversation {
   integrationId  String?
   externalId     String?
   channel        String
+  peerName       String?
   status         String   @default("bot_active")
+  lastMessageAt  DateTime @default(now())
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
   messages Message[]
 
+  @@unique([organizationId, channel, externalId])
   @@index([organizationId])
   @@index([organizationId, channel])
+  @@index([organizationId, lastMessageAt])
 }
 
 model Message {
