@@ -1,12 +1,16 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import type { LeadDto } from "@botme/shared";
 import { PrismaService } from "../prisma/prisma.service";
+import { NotificationsService } from "../notifications/notifications.service";
 import { detectLeadIntent } from "./lead-intent.util";
 import type { CreateLeadDto, UpdateLeadDto } from "./leads.dto";
 
 @Injectable()
 export class LeadsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notifications: NotificationsService,
+  ) {}
 
   async list(organizationId: string): Promise<LeadDto[]> {
     const rows = await this.prisma.lead.findMany({
@@ -28,6 +32,12 @@ export class LeadsService {
         note: body.note ?? null,
         stage: "new",
       },
+    });
+    await this.notifications.notifyOrg({
+      organizationId,
+      type: "new_lead",
+      title: "Новый лид",
+      body: [row.name, row.phone].filter(Boolean).join(" · ") || "Добавлен вручную",
     });
     return this.toDto(row);
   }
@@ -82,7 +92,7 @@ export class LeadsService {
     });
     if (existing) return existing;
 
-    return this.prisma.lead.create({
+    const lead = await this.prisma.lead.create({
       data: {
         organizationId: params.organizationId,
         conversationId: params.conversationId,
@@ -93,6 +103,15 @@ export class LeadsService {
         stage: "new",
       },
     });
+
+    await this.notifications.notifyOrg({
+      organizationId: params.organizationId,
+      type: "new_lead",
+      title: "Новый лид из диалога",
+      body: [lead.name, lead.phone, params.source].filter(Boolean).join(" · "),
+    });
+
+    return lead;
   }
 
   private toDto(row: {

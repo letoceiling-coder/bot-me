@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { clearToken } from "@/lib/api";
+import { NotificationsBell } from "@/components/notifications-bell";
 import type { AuthUser } from "@botme/shared";
 
 const nav = [
@@ -13,6 +14,11 @@ const nav = [
   { href: "/dashboard/knowledge", label: "База знаний" },
   { href: "/dashboard/leads", label: "Лиды" },
   { href: "/dashboard/settings", label: "Настройки" },
+];
+
+const adminNav = [
+  { href: "/dashboard/coach", label: "Coach" },
+  { href: "/dashboard/audit", label: "Аудит" },
 ];
 
 export function AppShell({
@@ -31,6 +37,8 @@ export function AppShell({
         : user.organization.plan === "business"
           ? "Business"
           : user.organization.plan;
+
+  const isOrgAdmin = user.role === "OWNER" || user.role === "ADMIN";
 
   return (
     <div className="flex min-h-screen bg-base">
@@ -53,6 +61,16 @@ export function AppShell({
               {item.label}
             </Link>
           ))}
+          {isOrgAdmin &&
+            adminNav.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="block rounded-[10px] px-3 py-2.5 text-sm text-text-secondary transition-colors hover:bg-white/5 hover:text-text-primary"
+              >
+                {item.label}
+              </Link>
+            ))}
         </nav>
         <div className="border-t border-white/6 p-4 text-sm">
           <p className="text-text-primary">{user.name ?? user.email}</p>
@@ -72,6 +90,7 @@ export function AppShell({
         <header className="flex h-14 items-center justify-between border-b border-white/6 bg-elevated px-4 lg:px-6">
           <p className="text-sm text-text-muted lg:hidden">botme</p>
           <div className="ml-auto flex items-center gap-3">
+            <NotificationsBell />
             <span className="rounded-full bg-accent/10 px-2.5 py-1 text-xs font-medium text-accent">
               Тариф {planLabel}
             </span>

@@ -13,6 +13,8 @@ import { AgentModule } from "./agent/agent.module";
 import { IntegrationsModule } from "./integrations/integrations.module";
 import { InboxModule } from "./inbox/inbox.module";
 import { LeadsModule } from "./leads/leads.module";
+import { NotificationsModule } from "./notifications/notifications.module";
+import { CoachModule } from "./coach/coach.module";
 
 @Module({
   imports: [
@@ -30,6 +32,8 @@ import { LeadsModule } from "./leads/leads.module";
     IntegrationsModule,
     InboxModule,
     LeadsModule,
+    NotificationsModule,
+    CoachModule,
   ],
 })
 export class AppModule {}

@@ -9,6 +9,7 @@ import { PrismaService } from "../prisma/prisma.service";
 import { CryptoService } from "../common/crypto.service";
 import { AgentRuntimeService } from "../agent/agent-runtime.service";
 import { LeadsService } from "../leads/leads.service";
+import { NotificationsService } from "../notifications/notifications.service";
 
 type TelegramMetadata = {
   assistantId?: string;
@@ -24,6 +25,7 @@ export class TelegramService {
     private readonly config: ConfigService,
     private readonly agent: AgentRuntimeService,
     private readonly leads: LeadsService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async getStatus(organizationId: string): Promise<TelegramIntegrationDto> {
@@ -119,6 +121,12 @@ export class TelegramService {
       await this.prisma.integration.update({
         where: { id: row.id },
         data: { status: "ERROR", lastError: desc },
+      });
+      await this.notifications.notifyOrg({
+        organizationId,
+        type: "integration_error",
+        title: "Ошибка Telegram",
+        body: desc,
       });
       throw new BadRequestException(`Telegram: ${desc}`);
     }

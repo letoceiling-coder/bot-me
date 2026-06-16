@@ -7,6 +7,8 @@ import type { InboxConversationDto, InboxMessageDto } from "@botme/shared";
 import { PrismaService } from "../prisma/prisma.service";
 import { TelegramService } from "../integrations/telegram.service";
 import { AvitoService } from "../integrations/avito.service";
+import { AuditService } from "../common/audit.service";
+import { NotificationsService } from "../notifications/notifications.service";
 
 @Injectable()
 export class InboxService {
@@ -14,6 +16,8 @@ export class InboxService {
     private readonly prisma: PrismaService,
     private readonly telegram: TelegramService,
     private readonly avito: AvitoService,
+    private readonly audit: AuditService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async listConversations(organizationId: string): Promise<InboxConversationDto[]> {
@@ -41,11 +45,25 @@ export class InboxService {
   async getMessages(
     organizationId: string,
     conversationId: string,
+    viewerUserId: string,
   ): Promise<InboxMessageDto[]> {
     const conv = await this.prisma.conversation.findFirst({
       where: { id: conversationId, organizationId },
     });
     if (!conv) throw new NotFoundException("Диалог не найден");
+
+    const viewer = await this.prisma.user.findUnique({
+      where: { id: viewerUserId },
+      select: { role: true },
+    });
+    if (viewer && (viewer.role === "OWNER" || viewer.role === "ADMIN")) {
+      await this.audit.log({
+        organizationId,
+        userId: viewerUserId,
+        action: "view_conversation",
+        resource: `conversation:${conversationId}`,
+      });
+    }
 
     const messages = await this.prisma.message.findMany({
       where: { conversationId },
@@ -61,12 +79,27 @@ export class InboxService {
     }));
   }
 
-  async takeover(organizationId: string, conversationId: string) {
+  async takeover(organizationId: string, conversationId: string, userId: string) {
     const conv = await this.requireConversation(organizationId, conversationId);
     await this.prisma.conversation.update({
       where: { id: conv.id },
       data: { status: "human_active" },
     });
+
+    await this.notifications.notifyOrg({
+      organizationId,
+      type: "takeover",
+      title: "Диалог перехвачен оператором",
+      body: conv.peerName ?? conversationId,
+    });
+
+    await this.audit.log({
+      organizationId,
+      userId,
+      action: "takeover",
+      resource: `conversation:${conversationId}`,
+    });
+
     return { ok: true, status: "human_active" };
   }
 

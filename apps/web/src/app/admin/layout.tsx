@@ -8,6 +8,7 @@ import type { AuthUser } from "@botme/shared";
 
 const nav = [
   { href: "/admin", label: "Обзор" },
+  { href: "/admin/dialogs", label: "Диалоги" },
   { href: "/admin/tariffs", label: "Тарифы" },
   { href: "/admin/settings", label: "Настройки" },
 ];

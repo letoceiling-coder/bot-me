@@ -16,18 +16,18 @@ export class InboxController {
 
   @Get("conversations/:id/messages")
   messages(
-    @CurrentUser() user: { organizationId: string },
+    @CurrentUser() user: { userId: string; organizationId: string },
     @Param("id") id: string,
   ) {
-    return this.inbox.getMessages(user.organizationId, id);
+    return this.inbox.getMessages(user.organizationId, id, user.userId);
   }
 
   @Post("conversations/:id/takeover")
   takeover(
-    @CurrentUser() user: { organizationId: string },
+    @CurrentUser() user: { userId: string; organizationId: string },
     @Param("id") id: string,
   ) {
-    return this.inbox.takeover(user.organizationId, id);
+    return this.inbox.takeover(user.organizationId, id, user.userId);
   }
 
   @Post("conversations/:id/release")
