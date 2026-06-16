@@ -1,6 +1,5 @@
 /**
- * Seed platform keys from env (run on server only, never commit secrets).
- * Usage: OPENROUTER_API_KEY=... S3_ACCESS_KEY=... S3_SECRET_KEY=... node scripts/seed-platform-keys.mjs
+ * Seed platform keys from env (run on server only).
  */
 import { PrismaClient } from "@prisma/client";
 import { createCipheriv, randomBytes } from "crypto";

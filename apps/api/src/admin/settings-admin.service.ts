@@ -252,24 +252,41 @@ export class SettingsAdminService {
 
     if (s3.accessKey && s3.secretKey && s3.bucket) {
       try {
-        const { S3Client, HeadBucketCommand } = await import("@aws-sdk/client-s3");
-        const endpoint = s3.endpoint?.startsWith("http")
+        const { S3Client, ListObjectsV2Command } = await import("@aws-sdk/client-s3");
+        const endpoint = (s3.endpoint?.startsWith("http")
           ? s3.endpoint
-          : `https://${s3.endpoint}`;
-        const client = new S3Client({
-          region: s3.region ?? "ru-3",
-          endpoint,
-          credentials: {
-            accessKeyId: s3.accessKey,
-            secretAccessKey: s3.secretKey,
-          },
-          forcePathStyle: true,
-        });
-        await client.send(new HeadBucketCommand({ Bucket: s3.bucket }));
-        results.s3 = {
-          ok: true,
-          message: `Бакет «${s3.bucket}» доступен (${s3.region})`,
-        };
+          : `https://${s3.endpoint}`
+        ).replace(/\/$/, "");
+        let lastErr: Error | null = null;
+        for (const forcePathStyle of [true, false]) {
+          try {
+            const client = new S3Client({
+              region: s3.region ?? "ru-3",
+              endpoint,
+              credentials: {
+                accessKeyId: s3.accessKey,
+                secretAccessKey: s3.secretKey,
+              },
+              forcePathStyle,
+            });
+            await client.send(
+              new ListObjectsV2Command({ Bucket: s3.bucket, MaxKeys: 1 }),
+            );
+            results.s3 = {
+              ok: true,
+              message: `Бакет «${s3.bucket}» доступен (${s3.region})`,
+            };
+            break;
+          } catch (err) {
+            lastErr = err instanceof Error ? err : new Error(String(err));
+          }
+        }
+        if (!results.s3.ok) {
+          results.s3 = {
+            ok: false,
+            message: lastErr?.message ?? "Ошибка S3",
+          };
+        }
       } catch (err) {
         results.s3 = {
           ok: false,
