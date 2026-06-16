@@ -151,12 +151,46 @@ export class BillingService {
       return { ok: true, skipped: true };
     }
 
-    const payment = await this.prisma.payment.findUnique({
-      where: { yukassaId: payload.object.id },
+    await this.activateByYukassaId(payload.object.id);
+    return { ok: true };
+  }
+
+  private async activateByYukassaId(yukassaId: string) {
+    let payment = await this.prisma.payment.findUnique({
+      where: { yukassaId },
     });
-    if (!payment || payment.status === "succeeded") {
-      return { ok: true };
+
+    if (!payment) {
+      const creds = await this.settings.getYukassaCredentials();
+      if (!creds.shopId || !creds.secretKey) return;
+      const auth = Buffer.from(`${creds.shopId}:${creds.secretKey}`).toString(
+        "base64",
+      );
+      const res = await fetch(
+        `https://api.yookassa.ru/v3/payments/${yukassaId}`,
+        { headers: { Authorization: `Basic ${auth}` } },
+      );
+      if (!res.ok) return;
+      const data = (await res.json()) as {
+        status?: string;
+        amount?: { value?: string; currency?: string };
+        metadata?: { organizationId?: string; tariffSlug?: string };
+      };
+      if (data.status !== "succeeded" || !data.metadata?.organizationId) return;
+
+      payment = await this.prisma.payment.create({
+        data: {
+          organizationId: data.metadata.organizationId,
+          tariffSlug: data.metadata.tariffSlug ?? "start",
+          amount: Math.round(Number(data.amount?.value ?? 0) * 100),
+          currency: data.amount?.currency ?? "RUB",
+          yukassaId,
+          status: "pending",
+        },
+      });
     }
+
+    if (payment.status === "succeeded") return;
 
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 30);
@@ -175,23 +209,20 @@ export class BillingService {
         },
       }),
     ]);
-
-    return { ok: true, activated: payment.organizationId };
   }
 
   async syncPayment(organizationId: string) {
-    const pendingList = await this.prisma.payment.findMany({
-      where: { organizationId, status: "pending" },
-      orderBy: { createdAt: "desc" },
-    });
-    if (!pendingList.length) return { synced: false };
-
     const creds = await this.settings.getYukassaCredentials();
     if (!creds.shopId || !creds.secretKey) return { synced: false };
 
     const auth = Buffer.from(`${creds.shopId}:${creds.secretKey}`).toString(
       "base64",
     );
+
+    const pendingList = await this.prisma.payment.findMany({
+      where: { organizationId, status: "pending" },
+      orderBy: { createdAt: "desc" },
+    });
 
     for (const pending of pendingList) {
       if (!pending.yukassaId) continue;
@@ -203,14 +234,49 @@ export class BillingService {
 
       const data = (await res.json()) as { status?: string };
       if (data.status === "succeeded") {
-        await this.handleYukassaWebhook({
-          event: "payment.succeeded",
-          object: { id: pending.yukassaId },
-        });
+        await this.activateByYukassaId(pending.yukassaId);
         return { synced: true, status: "active" };
+      }
+      if (data.status === "canceled") {
+        await this.prisma.payment.update({
+          where: { id: pending.id },
+          data: { status: "canceled" },
+        });
+        const org = await this.prisma.organization.findUnique({
+          where: { id: organizationId },
+        });
+        if (org?.subscriptionStatus === "pending") {
+          await this.prisma.organization.update({
+            where: { id: organizationId },
+            data: { subscriptionStatus: "none" },
+          });
+        }
       }
     }
 
-    return { synced: true, status: "pending" };
+    const listRes = await fetch(
+      "https://api.yookassa.ru/v3/payments?limit=100",
+      { headers: { Authorization: `Basic ${auth}` } },
+    );
+    if (listRes.ok) {
+      const list = (await listRes.json()) as {
+        items?: Array<{
+          id: string;
+          status?: string;
+          metadata?: { organizationId?: string };
+        }>;
+      };
+      for (const item of list.items ?? []) {
+        if (
+          item.status === "succeeded" &&
+          item.metadata?.organizationId === organizationId
+        ) {
+          await this.activateByYukassaId(item.id);
+          return { synced: true, status: "active" };
+        }
+      }
+    }
+
+    return { synced: true, status: "none" };
   }
 }

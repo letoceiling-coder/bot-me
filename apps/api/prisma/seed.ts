@@ -53,7 +53,7 @@ async function main() {
       slug: "start",
       name: "Старт",
       description: "Для начала работы с одним каналом",
-      priceMonthly: 99000,
+      priceMonthly: 1000,
       features: ["1 ассистент", "1 канал", "500 сообщений/мес"],
       limits: { assistants: 1, channels: 1, messages: 500 },
       sortOrder: 1,
