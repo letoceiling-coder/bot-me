@@ -9,6 +9,7 @@ RUN npm ci
 
 FROM deps AS builder
 COPY . .
+RUN npm run build --workspace=@botme/shared
 RUN npm run db:generate --workspace=@botme/api
 RUN npm run build --workspace=@botme/api
 
@@ -20,7 +21,6 @@ COPY --from=builder /app/apps/api/dist ./apps/api/dist
 COPY --from=builder /app/apps/api/package.json ./apps/api/package.json
 COPY --from=builder /app/apps/api/prisma ./apps/api/prisma
 COPY --from=builder /app/packages/shared ./packages/shared
-COPY package.json ./
 WORKDIR /app/apps/api
 EXPOSE 3001
 CMD ["node", "dist/main.js"]

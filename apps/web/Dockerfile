@@ -11,6 +11,7 @@ FROM deps AS builder
 ARG NEXT_PUBLIC_API_URL=https://bot-me.neeklo.ru
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 COPY . .
+RUN npm run build --workspace=@botme/shared
 RUN npm run build --workspace=@botme/web
 
 FROM node:20-alpine AS runner
