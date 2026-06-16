@@ -10,11 +10,16 @@
     "dev:web": "npm run dev --workspace=@botme/web",
     "dev:api": "npm run dev --workspace=@botme/api",
     "build": "npm run build --workspace=@botme/shared && npm run build --workspace=@botme/api && npm run build --workspace=@botme/web",
+    "test": "npm run test --workspace=@botme/api",
+    "test:e2e": "playwright test -c e2e/playwright.config.ts",
     "lint": "npm run lint --workspaces --if-present",
     "db:generate": "npm run db:generate --workspace=@botme/api",
     "db:migrate": "npm run db:migrate --workspace=@botme/api",
     "db:push": "npm run db:push --workspace=@botme/api",
     "db:seed": "npm run db:seed --workspace=@botme/api"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.51.0"
   },
   "engines": {
     "node": ">=20"

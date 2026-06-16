@@ -12,6 +12,14 @@ Skills are installed globally in Cursor (`~/.cursor/skills/gstack-*`). Runtime b
 
 Source: `C:\Users\dsc-2\projects\gstack`
 
+## Production deploy
+
+See [docs/DEPLOY.md](docs/DEPLOY.md) — routine deploy after push to `main`:
+
+```bash
+ssh root@212.67.9.173 "bash /var/www/bot-me.neeklo.ru/deploy/deploy.sh"
+```
+
 ## Development with gstack
 
 See [AGENTS.md](AGENTS.md) for the full skill catalog and routing rules.

@@ -6,6 +6,7 @@ import {
 import type { CoachSessionResponseDto, CoachSuggestionDto } from "@botme/shared";
 import { PrismaService } from "../prisma/prisma.service";
 import { SettingsAdminService } from "../admin/settings-admin.service";
+import { UsageService } from "../billing/usage.service";
 
 const COACH_MODEL = "anthropic/claude-3.5-sonnet";
 
@@ -14,12 +15,14 @@ export class CoachService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly settings: SettingsAdminService,
+    private readonly usage: UsageService,
   ) {}
 
   async analyzeConversation(
     organizationId: string,
     conversationId: string,
   ): Promise<CoachSessionResponseDto> {
+    await this.usage.assertCanUseLlm(organizationId);
     const conv = await this.prisma.conversation.findFirst({
       where: { id: conversationId, organizationId },
       include: {
@@ -102,6 +105,7 @@ ${transcript || "(сообщений нет)"}
       data.choices?.[0]?.message?.content?.trim() ||
       '{"summary":"Не удалось получить анализ","suggestions":[]}';
 
+    await this.usage.recordLlmCall(organizationId);
     return this.parseCoachResponse(raw, COACH_MODEL);
   }
 

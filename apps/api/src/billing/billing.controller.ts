@@ -2,16 +2,25 @@ import { Body, Controller, Get, Post, UseGuards } from "@nestjs/common";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { Public, CurrentUser } from "../auth/auth.decorators";
 import { BillingService } from "./billing.service";
+import { UsageService } from "./usage.service";
 import { CheckoutDto } from "./billing.dto";
 
 @Controller("billing")
 @UseGuards(JwtAuthGuard)
 export class BillingController {
-  constructor(private readonly billing: BillingService) {}
+  constructor(
+    private readonly billing: BillingService,
+    private readonly usage: UsageService,
+  ) {}
 
   @Get("status")
   status(@CurrentUser() user: { organizationId: string }) {
     return this.billing.getStatus(user.organizationId);
+  }
+
+  @Get("usage")
+  getUsage(@CurrentUser() user: { organizationId: string }) {
+    return this.usage.getUsageSummary(user.organizationId);
   }
 
   @Post("checkout")

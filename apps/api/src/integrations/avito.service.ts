@@ -11,6 +11,7 @@ import { CryptoService } from "../common/crypto.service";
 import { AgentRuntimeService } from "../agent/agent-runtime.service";
 import { LeadsService } from "../leads/leads.service";
 import { NotificationsService } from "../notifications/notifications.service";
+import { WebhookDedupService } from "../common/webhook-dedup.service";
 
 type AvitoCredentials = {
   clientId: string;
@@ -42,6 +43,7 @@ export class AvitoService {
     private readonly agent: AgentRuntimeService,
     private readonly leads: LeadsService,
     private readonly notifications: NotificationsService,
+    private readonly dedup: WebhookDedupService,
   ) {}
 
   async getStatus(organizationId: string): Promise<AvitoIntegrationDto> {
@@ -206,14 +208,24 @@ export class AvitoService {
       return { ok: false, error: "forbidden" };
     }
 
-    if (row.status !== "CONNECTED" || !row.enabled) {
-      return { ok: true, skipped: true };
-    }
-
     const payload = body.payload as
       | { type?: string; value?: AvitoWebhookValue }
       | undefined;
     const value = payload?.value;
+    const msgId = value?.id;
+    if (msgId) {
+      const isNew = await this.dedup.tryClaim({
+        source: "avito",
+        dedupeKey: `${organizationId}:${msgId}`,
+        organizationId,
+      });
+      if (!isNew) return { ok: true, duplicate: true };
+    }
+
+    if (row.status !== "CONNECTED" || !row.enabled) {
+      return { ok: true, skipped: true };
+    }
+
     const text = value?.content?.text;
     const chatId = value?.chat_id;
 

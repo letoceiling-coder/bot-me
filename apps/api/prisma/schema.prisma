@@ -309,3 +309,28 @@ model AuditLog {
 
   @@index([organizationId])
 }
+
+model OrgUsagePeriod {
+  id                 String   @id @default(cuid())
+  organizationId     String
+  period             String
+  messageCount       Int      @default(0)
+  llmCalls           Int      @default(0)
+  usageWarningSent   Boolean  @default(false)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@unique([organizationId, period])
+  @@index([organizationId])
+}
+
+model WebhookDedup {
+  id             String   @id @default(cuid())
+  source         String
+  dedupeKey      String
+  organizationId String?
+  createdAt      DateTime @default(now())
+
+  @@unique([source, dedupeKey])
+  @@index([organizationId])
+}

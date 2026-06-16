@@ -4,17 +4,20 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import { randomBytes } from "crypto";
 import type { TelegramIntegrationDto } from "@botme/shared";
 import { PrismaService } from "../prisma/prisma.service";
 import { CryptoService } from "../common/crypto.service";
 import { AgentRuntimeService } from "../agent/agent-runtime.service";
 import { LeadsService } from "../leads/leads.service";
 import { NotificationsService } from "../notifications/notifications.service";
+import { WebhookDedupService } from "../common/webhook-dedup.service";
 
 type TelegramMetadata = {
   assistantId?: string;
   botUsername?: string;
   botId?: number;
+  webhookSecret?: string;
 };
 
 @Injectable()
@@ -26,6 +29,7 @@ export class TelegramService {
     private readonly agent: AgentRuntimeService,
     private readonly leads: LeadsService,
     private readonly notifications: NotificationsService,
+    private readonly dedup: WebhookDedupService,
   ) {}
 
   async getStatus(organizationId: string): Promise<TelegramIntegrationDto> {
@@ -67,6 +71,7 @@ export class TelegramService {
       assistantId,
       botUsername: (existing?.metadata as TelegramMetadata)?.botUsername,
       botId: (existing?.metadata as TelegramMetadata)?.botId,
+      webhookSecret: (existing?.metadata as TelegramMetadata)?.webhookSecret,
     };
 
     let encrypted = existing?.credentialsEnc ?? null;
@@ -109,7 +114,9 @@ export class TelegramService {
   async connect(organizationId: string) {
     const row = await this.getIntegration(organizationId);
     const token = this.decryptToken(row.credentialsEnc!);
-    const webhookUrl = this.webhookUrl(organizationId);
+    const meta = (row.metadata ?? {}) as TelegramMetadata;
+    const webhookSecret = meta.webhookSecret ?? randomBytes(16).toString("hex");
+    const webhookUrl = this.webhookUrl(organizationId, webhookSecret);
 
     const result = await this.telegramApi(token, "setWebhook", {
       url: webhookUrl,
@@ -133,7 +140,7 @@ export class TelegramService {
 
     await this.prisma.integration.update({
       where: { id: row.id },
-      data: { status: "CONNECTED", enabled: true, lastError: null },
+      data: { status: "CONNECTED", enabled: true, lastError: null, metadata: { ...meta, webhookSecret } },
     });
 
     return this.getStatus(organizationId);
@@ -158,8 +165,27 @@ export class TelegramService {
     return this.getStatus(organizationId);
   }
 
-  async handleWebhook(organizationId: string, update: Record<string, unknown>) {
+  async handleWebhook(
+    organizationId: string,
+    secret: string | undefined,
+    update: Record<string, unknown>,
+  ) {
     const row = await this.getIntegration(organizationId);
+    const meta = (row.metadata ?? {}) as TelegramMetadata;
+    if (meta.webhookSecret && secret !== meta.webhookSecret) {
+      return { ok: false, error: "forbidden" };
+    }
+
+    const updateId = update.update_id;
+    if (updateId != null) {
+      const isNew = await this.dedup.tryClaim({
+        source: "telegram",
+        dedupeKey: `${organizationId}:${String(updateId)}`,
+        organizationId,
+      });
+      if (!isNew) return { ok: true, duplicate: true };
+    }
+
     if (row.status !== "CONNECTED" || !row.enabled) {
       return { ok: true, skipped: true };
     }
@@ -177,7 +203,6 @@ export class TelegramService {
       return { ok: true, skipped: true };
     }
 
-    const meta = (row.metadata ?? {}) as TelegramMetadata;
     if (!meta.assistantId) {
       return { ok: true, skipped: true };
     }
@@ -333,10 +358,10 @@ export class TelegramService {
     return this.crypto.decrypt(encrypted);
   }
 
-  private webhookUrl(organizationId: string) {
+  private webhookUrl(organizationId: string, secret: string) {
     const origin =
       this.config.get<string>("WEB_ORIGIN") ?? "https://bot-me.neeklo.ru";
-    return `${origin}/api/webhooks/telegram/${organizationId}`;
+    return `${origin}/api/webhooks/telegram/${organizationId}?secret=${secret}`;
   }
 
   private async telegramApi(

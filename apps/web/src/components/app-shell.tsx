@@ -21,6 +21,14 @@ const adminNav = [
   { href: "/dashboard/audit", label: "Аудит" },
 ];
 
+const mobileNav = [
+  { href: "/dashboard/inbox", label: "Диалоги" },
+  { href: "/dashboard/leads", label: "Лиды" },
+  { href: "/dashboard", label: "Обзор" },
+  { href: "/dashboard/integrations", label: "Каналы" },
+  { href: "/dashboard/settings", label: "Ещё" },
+];
+
 export function AppShell({
   user,
   children,
@@ -102,7 +110,18 @@ export function AppShell({
             </div>
           </div>
         </header>
-        <main className="flex-1 p-4 lg:p-6">{children}</main>
+        <main className="flex-1 p-4 pb-20 lg:pb-6 lg:p-6">{children}</main>
+        <nav className="fixed bottom-0 left-0 right-0 z-40 flex border-t border-white/6 bg-elevated lg:hidden">
+          {mobileNav.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className="flex flex-1 flex-col items-center py-2.5 text-[10px] text-text-muted hover:text-accent"
+            >
+              {item.label}
+            </Link>
+          ))}
+        </nav>
       </div>
     </div>
   );

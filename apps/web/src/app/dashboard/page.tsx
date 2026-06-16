@@ -8,14 +8,24 @@ import type { BillingStatus, DashboardOverview } from "@botme/shared";
 export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardOverview | null>(null);
   const [billing, setBilling] = useState<BillingStatus | null>(null);
+  const [usage, setUsage] = useState<{
+    used: number;
+    limit: number;
+    percent: number;
+    period: string;
+  } | null>(null);
 
   useEffect(() => {
     Promise.all([
       apiFetch<DashboardOverview>("/dashboard/overview"),
       apiFetch<BillingStatus>("/billing/status"),
-    ]).then(([s, b]) => {
+      apiFetch<{ used: number; limit: number; percent: number; period: string }>(
+        "/billing/usage",
+      ).catch(() => null),
+    ]).then(([s, b, u]) => {
       setStats(s);
       setBilling(b);
+      if (u) setUsage(u);
     });
   }, []);
 
@@ -32,6 +42,12 @@ export default function DashboardPage() {
           <p className="mt-1 text-sm text-text-secondary">
             Тариф {planName} · активен до{" "}
             {new Date(billing.expiresAt).toLocaleDateString("ru-RU")}
+          </p>
+        )}
+        {usage && (
+          <p className="mt-1 text-sm text-text-secondary">
+            Сообщения LLM: {usage.used} / {usage.limit} ({usage.percent}% за{" "}
+            {usage.period})
           </p>
         )}
       </div>
