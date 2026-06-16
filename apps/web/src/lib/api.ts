@@ -53,6 +53,25 @@ export async function apiFetch<T>(
   return res.json() as Promise<T>;
 }
 
+export async function apiUpload<T>(path: string, formData: FormData): Promise<T> {
+  const token = getToken();
+  const res = await fetch(`${API_URL}/api${path}`, {
+    method: "POST",
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: formData,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    const message = Array.isArray(err.message)
+      ? err.message.join(", ")
+      : err.message ?? `Ошибка ${res.status}`;
+    throw new ApiError(message, res.status);
+  }
+  return res.json() as Promise<T>;
+}
+
 /** Проверка сессии; при 401 очищает токен и возвращает null */
 export async function fetchCurrentUser() {
   try {

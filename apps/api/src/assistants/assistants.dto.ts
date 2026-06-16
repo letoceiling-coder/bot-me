@@ -31,6 +31,10 @@ export class CreateAssistantDto {
   @IsArray()
   @IsString({ each: true })
   enabledToolIds?: string[];
+
+  @IsOptional()
+  @IsString()
+  knowledgeBaseId?: string | null;
 }
 
 export class UpdateAssistantDto {
@@ -59,4 +63,8 @@ export class UpdateAssistantDto {
   @IsArray()
   @IsString({ each: true })
   enabledToolIds?: string[];
+
+  @IsOptional()
+  @IsString()
+  knowledgeBaseId?: string | null;
 }

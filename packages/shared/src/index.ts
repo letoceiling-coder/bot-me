@@ -73,3 +73,4 @@ export interface TariffPlanDto {
 
 export * from "./assistants";
 export * from "./prompt-builder";
+export * from "./knowledge";

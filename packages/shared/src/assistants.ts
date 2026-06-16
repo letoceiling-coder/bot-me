@@ -33,6 +33,7 @@ export interface AssistantDto {
   customInstructions: string | null;
   modelConfig: { model?: string; temperature?: number } | null;
   isActive: boolean;
+  knowledgeBaseId: string | null;
   builtPrompt?: string;
   tools: AssistantToolConfigDto[];
   createdAt: string;
@@ -46,6 +47,7 @@ export interface CreateAssistantInput {
   model?: string;
   temperature?: number;
   enabledToolIds?: string[];
+  knowledgeBaseId?: string | null;
 }
 
 export interface UpdateAssistantInput {
@@ -55,4 +57,5 @@ export interface UpdateAssistantInput {
   temperature?: number;
   isActive?: boolean;
   enabledToolIds?: string[];
+  knowledgeBaseId?: string | null;
 }

@@ -12,6 +12,7 @@ import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { CurrentUser } from "../auth/auth.decorators";
 import { AssistantsService } from "./assistants.service";
 import { CreateAssistantDto, UpdateAssistantDto } from "./assistants.dto";
+import { TestChatDto } from "./test-chat.dto";
 
 @Controller()
 @UseGuards(JwtAuthGuard)
@@ -39,6 +40,15 @@ export class AssistantsController {
     @Body() body: CreateAssistantDto,
   ) {
     return this.assistants.create(user.organizationId, body);
+  }
+
+  @Post("assistants/:id/test-chat")
+  testChat(
+    @CurrentUser() user: { organizationId: string },
+    @Param("id") id: string,
+    @Body() body: TestChatDto,
+  ) {
+    return this.assistants.testChat(user.organizationId, id, body);
   }
 
   @Get("assistants/:id")

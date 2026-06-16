@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
-import type { AssistantDto, ToolDefinitionDto } from "@botme/shared";
+import { TestChatPanel } from "@/components/test-chat-panel";
+import type { AssistantDto, KnowledgeBaseDto, ToolDefinitionDto } from "@botme/shared";
 
 export default function EditAssistantPage() {
   const { id } = useParams<{ id: string }>();
@@ -14,6 +15,8 @@ export default function EditAssistantPage() {
   const [name, setName] = useState("");
   const [customInstructions, setCustomInstructions] = useState("");
   const [enabledToolIds, setEnabledToolIds] = useState<string[]>([]);
+  const [knowledgeBaseId, setKnowledgeBaseId] = useState<string>("");
+  const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBaseDto[]>([]);
   const [isActive, setIsActive] = useState(true);
   const [promptPreview, setPromptPreview] = useState("");
   const [loading, setLoading] = useState(true);
@@ -25,12 +28,15 @@ export default function EditAssistantPage() {
     Promise.all([
       apiFetch<AssistantDto>(`/assistants/${id}`),
       apiFetch<ToolDefinitionDto[]>("/tools"),
+      apiFetch<KnowledgeBaseDto[]>("/knowledge/bases"),
     ])
-      .then(([a, t]) => {
+      .then(([a, t, kb]) => {
         setAssistant(a);
         setName(a.name);
         setCustomInstructions(a.customInstructions ?? "");
         setEnabledToolIds(a.tools.filter((x) => x.enabled).map((x) => x.toolId));
+        setKnowledgeBaseId(a.knowledgeBaseId ?? "");
+        setKnowledgeBases(kb);
         setIsActive(a.isActive);
         setPromptPreview(a.builtPrompt ?? a.systemPrompt);
         setTools(t);
@@ -58,9 +64,11 @@ export default function EditAssistantPage() {
           customInstructions,
           enabledToolIds,
           isActive,
+          knowledgeBaseId: knowledgeBaseId || null,
         }),
       });
       setAssistant(updated);
+      setKnowledgeBaseId(updated.knowledgeBaseId ?? "");
       setPromptPreview(updated.builtPrompt ?? updated.systemPrompt);
       setMsg("Сохранено");
     } catch (err) {
@@ -130,6 +138,27 @@ export default function EditAssistantPage() {
         </section>
 
         <section className="rounded-[14px] border border-white/6 bg-surface p-6 space-y-3">
+          <h2 className="font-semibold">База знаний</h2>
+          <select
+            value={knowledgeBaseId}
+            onChange={(e) => setKnowledgeBaseId(e.target.value)}
+            className="w-full rounded-[10px] border border-white/10 bg-elevated px-3 py-2.5 text-sm outline-none focus:border-accent"
+          >
+            <option value="">Без базы знаний</option>
+            {knowledgeBases.map((kb) => (
+              <option key={kb.id} value={kb.id}>
+                {kb.name} ({kb.documentCount} док.)
+              </option>
+            ))}
+          </select>
+          <p className="text-xs text-text-muted">
+            <Link href="/dashboard/knowledge" className="text-accent hover:underline">
+              Управление базой знаний
+            </Link>
+          </p>
+        </section>
+
+        <section className="rounded-[14px] border border-white/6 bg-surface p-6 space-y-3">
           <h2 className="font-semibold">Инструменты</h2>
           <div className="space-y-2">
             {tools.map((t) => (
@@ -185,6 +214,11 @@ export default function EditAssistantPage() {
           </button>
         </div>
       </form>
+
+      <TestChatPanel
+        assistantId={id}
+        knowledgeBaseId={knowledgeBaseId || null}
+      />
     </div>
   );
 }

@@ -9,15 +9,23 @@ import type {
   AssistantToolConfigDto,
   CreateAssistantInput,
   PromptPresetDto,
+  TestChatInput,
+  TestChatResponse,
   ToolDefinitionDto,
   UpdateAssistantInput,
 } from "@botme/shared";
 import { PrismaService } from "../prisma/prisma.service";
+import { SettingsAdminService } from "../admin/settings-admin.service";
+import { KnowledgeService } from "../knowledge/knowledge.service";
 import { PROMPT_PRESETS, TOOL_DEFINITIONS } from "./registry-seed";
 
 @Injectable()
 export class AssistantsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly settings: SettingsAdminService,
+    private readonly knowledge: KnowledgeService,
+  ) {}
 
   async syncRegistry() {
     for (const tool of TOOL_DEFINITIONS) {
@@ -139,6 +147,10 @@ export class AssistantsService {
       customInstructions: input.customInstructions,
     });
 
+    if (input.knowledgeBaseId) {
+      await this.assertKnowledgeBase(organizationId, input.knowledgeBaseId);
+    }
+
     const assistant = await this.prisma.assistant.create({
       data: {
         organizationId,
@@ -146,6 +158,7 @@ export class AssistantsService {
         presetId: preset.id,
         systemPrompt: builtPrompt,
         customInstructions: input.customInstructions ?? null,
+        knowledgeBaseId: input.knowledgeBaseId ?? null,
         modelConfig: {
           model: input.model ?? "openai/gpt-4o-mini",
           temperature: input.temperature ?? 0.7,
@@ -239,6 +252,12 @@ export class AssistantsService {
       ...(input.temperature !== undefined ? { temperature: input.temperature } : {}),
     };
 
+    if (input.knowledgeBaseId !== undefined) {
+      if (input.knowledgeBaseId) {
+        await this.assertKnowledgeBase(organizationId, input.knowledgeBaseId);
+      }
+    }
+
     const updated = await this.prisma.assistant.update({
       where: { id },
       data: {
@@ -247,6 +266,9 @@ export class AssistantsService {
         systemPrompt: builtPrompt,
         modelConfig,
         isActive: input.isActive ?? refreshed.isActive,
+        ...(input.knowledgeBaseId !== undefined
+          ? { knowledgeBaseId: input.knowledgeBaseId }
+          : {}),
       },
       include: {
         toolConfigs: { include: { tool: true } },
@@ -266,6 +288,103 @@ export class AssistantsService {
   async previewPrompt(organizationId: string, id: string) {
     const dto = await this.get(organizationId, id);
     return { builtPrompt: dto.builtPrompt ?? dto.systemPrompt };
+  }
+
+  async testChat(
+    organizationId: string,
+    id: string,
+    input: TestChatInput,
+  ): Promise<TestChatResponse> {
+    const assistant = await this.findOwned(organizationId, id);
+    const apiKey = await this.settings.getOpenRouterApiKey();
+    if (!apiKey) {
+      throw new BadRequestException(
+        "OpenRouter не настроен. Администратор должен добавить API-ключ.",
+      );
+    }
+
+    const model =
+      (assistant.modelConfig as { model?: string } | null)?.model ??
+      (await this.settings.getOpenRouterDefaultModel());
+
+    const sources = assistant.knowledgeBaseId
+      ? await this.knowledge.search(
+          organizationId,
+          assistant.knowledgeBaseId,
+          input.message,
+          4,
+        )
+      : [];
+
+    const kbBlock =
+      sources.length > 0
+        ? `\n\nКонтекст из базы знаний:\n${sources
+            .map(
+              (s, i) =>
+                `[${i + 1}] ${s.documentTitle}: ${s.content.slice(0, 600)}`,
+            )
+            .join("\n\n")}`
+        : "";
+
+    const systemContent = `${assistant.systemPrompt}${kbBlock}\n\nОтвечай только на основе контекста и инструкций. Если данных нет — честно скажи об этом.`;
+
+    const messages: Array<{ role: string; content: string }> = [
+      { role: "system", content: systemContent },
+      ...(input.history ?? []).map((m) => ({
+        role: m.role,
+        content: m.content,
+      })),
+      { role: "user", content: input.message },
+    ];
+
+    const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://bot-me.neeklo.ru",
+        "X-Title": "botme",
+      },
+      body: JSON.stringify({
+        model,
+        messages,
+        temperature:
+          (assistant.modelConfig as { temperature?: number } | null)
+            ?.temperature ?? 0.7,
+      }),
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      throw new BadRequestException(
+        `OpenRouter: ${errText.slice(0, 300) || res.statusText}`,
+      );
+    }
+
+    const data = (await res.json()) as {
+      choices?: Array<{ message?: { content?: string } }>;
+    };
+    const reply =
+      data.choices?.[0]?.message?.content?.trim() ||
+      "Не удалось получить ответ модели.";
+
+    return {
+      reply,
+      sources: sources.map((s) => ({
+        documentTitle: s.documentTitle,
+        excerpt: s.excerpt,
+      })),
+      model,
+    };
+  }
+
+  private async assertKnowledgeBase(organizationId: string, baseId: string) {
+    const base = await this.prisma.knowledgeBase.findFirst({
+      where: { id: baseId, organizationId },
+    });
+    if (!base) {
+      throw new BadRequestException("База знаний не найдена");
+    }
   }
 
   private async findOwned(organizationId: string, id: string) {
@@ -331,6 +450,7 @@ export class AssistantsService {
       customInstructions: row.customInstructions,
       modelConfig,
       isActive: row.isActive,
+      knowledgeBaseId: row.knowledgeBaseId,
       builtPrompt: row.systemPrompt,
       tools,
       createdAt: row.createdAt.toISOString(),

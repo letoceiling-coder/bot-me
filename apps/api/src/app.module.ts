@@ -8,6 +8,7 @@ import { TariffsModule } from "./tariffs/tariffs.module";
 import { BillingModule } from "./billing/billing.module";
 import { DashboardModule } from "./dashboard/dashboard.module";
 import { AssistantsModule } from "./assistants/assistants.module";
+import { KnowledgeModule } from "./knowledge/knowledge.module";
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { AssistantsModule } from "./assistants/assistants.module";
     TariffsModule,
     BillingModule,
     DashboardModule,
+    KnowledgeModule,
     AssistantsModule,
   ],
 })
