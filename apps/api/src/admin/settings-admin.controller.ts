@@ -3,6 +3,7 @@ import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { PlatformAdminGuard } from "./platform-admin.guard";
 import { SettingsAdminService } from "./settings-admin.service";
 import { NeekloSettingsDto, YukassaSettingsDto } from "./tariffs-admin.dto";
+import { OpenRouterSettingsDto, S3SettingsDto } from "./settings.dto";
 
 @Controller("admin/settings")
 @UseGuards(JwtAuthGuard, PlatformAdminGuard)
@@ -27,6 +28,26 @@ export class SettingsAdminController {
   @Put("neeklo")
   setNeeklo(@Body() body: NeekloSettingsDto) {
     return this.settings.setNeeklo(body);
+  }
+
+  @Get("openrouter")
+  getOpenRouter() {
+    return this.settings.getOpenRouterPublic();
+  }
+
+  @Put("openrouter")
+  setOpenRouter(@Body() body: OpenRouterSettingsDto) {
+    return this.settings.setOpenRouter(body);
+  }
+
+  @Get("s3")
+  getS3() {
+    return this.settings.getS3Public();
+  }
+
+  @Put("s3")
+  setS3(@Body() body: S3SettingsDto) {
+    return this.settings.setS3(body);
   }
 
   @Post("test")

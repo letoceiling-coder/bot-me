@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { apiFetch, clearToken, getToken } from "@/lib/api";
-import type { AuthUser } from "@botme/shared";
+import type { AuthUser, BillingStatus } from "@botme/shared";
 import { AppShell } from "@/components/app-shell";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -16,10 +16,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       router.replace(`/login?next=${encodeURIComponent(pathname)}`);
       return;
     }
-    apiFetch<AuthUser>("/auth/me")
-      .then((u) => {
+    Promise.all([
+      apiFetch<AuthUser>("/auth/me"),
+      apiFetch<BillingStatus>("/billing/status"),
+    ])
+      .then(([u, billing]) => {
         if (u.isPlatformAdmin) {
           router.replace("/admin");
+          return;
+        }
+        if (billing.subscriptionStatus !== "active") {
+          router.replace("/onboarding");
           return;
         }
         setUser(u);

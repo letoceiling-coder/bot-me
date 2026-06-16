@@ -34,7 +34,27 @@ export interface AuthUser {
     name: string;
     slug: string;
     plan: string;
+    subscriptionStatus?: string;
   };
+}
+
+export interface BillingStatus {
+  subscriptionStatus: string;
+  plan: string;
+  expiresAt: string | null;
+  tariff: {
+    slug: string;
+    name: string;
+    priceMonthly: number;
+    currency: string;
+  } | null;
+  pendingPaymentUrl: string | null;
+}
+
+export interface DashboardOverview {
+  integrations: number;
+  assistants: number;
+  conversationsToday: number;
 }
 
 export interface TariffPlanDto {

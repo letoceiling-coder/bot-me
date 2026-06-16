@@ -31,7 +31,13 @@ export class AuthService {
     role: string;
     isPlatformAdmin: boolean;
     organizationId: string;
-    organization: { id: string; name: string; slug: string; plan: string };
+    organization: {
+      id: string;
+      name: string;
+      slug: string;
+      plan: string;
+      subscriptionStatus: string;
+    };
   }): AuthUser {
     return {
       id: user.id,
@@ -40,7 +46,13 @@ export class AuthService {
       role: user.role as AuthUser["role"],
       isPlatformAdmin: user.isPlatformAdmin,
       organizationId: user.organizationId,
-      organization: user.organization,
+      organization: {
+        id: user.organization.id,
+        name: user.organization.name,
+        slug: user.organization.slug,
+        plan: user.organization.plan,
+        subscriptionStatus: user.organization.subscriptionStatus,
+      },
     };
   }
 

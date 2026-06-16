@@ -21,12 +21,14 @@ enum IntegrationStatus {
 }
 
 model Organization {
-  id        String   @id @default(cuid())
-  name      String
-  slug      String   @unique
-  plan      String   @default("start")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                    String    @id @default(cuid())
+  name                  String
+  slug                  String    @unique
+  plan                  String    @default("start")
+  subscriptionStatus    String    @default("none")
+  subscriptionExpiresAt DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
 
   users         User[]
   integrations  Integration[]
@@ -34,6 +36,7 @@ model Organization {
   knowledgeBases KnowledgeBase[]
   leads         Lead[]
   clients       Client[]
+  payments      Payment[]
 }
 
 model User {
@@ -73,6 +76,22 @@ model SystemSetting {
   category  String
   isSecret  Boolean  @default(false)
   updatedAt DateTime @updatedAt
+}
+
+model Payment {
+  id              String       @id @default(cuid())
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  tariffSlug      String
+  amount          Int
+  currency        String       @default("RUB")
+  yukassaId       String?      @unique
+  status          String       @default("pending")
+  confirmationUrl String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@index([organizationId])
 }
 
 model Integration {

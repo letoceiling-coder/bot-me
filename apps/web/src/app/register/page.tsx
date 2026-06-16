@@ -30,7 +30,7 @@ export default function RegisterPage() {
         },
       );
       setToken(data.token);
-      router.push("/dashboard");
+      router.push("/onboarding");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Ошибка регистрации");
     } finally {
