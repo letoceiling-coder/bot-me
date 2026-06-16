@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { apiFetch, setToken } from "@/lib/api";
-import type { AuthUser } from "@botme/shared";
+import type { AuthUser, BillingStatus } from "@botme/shared";
 
 export default function LoginForm() {
   const router = useRouter();
@@ -28,10 +28,15 @@ export default function LoginForm() {
         },
       );
       setToken(data.token);
-      if (data.user.isPlatformAdmin) {
-        router.push("/admin");
-      } else {
-        router.push(next.startsWith("/dashboard") ? next : "/dashboard");
+      try {
+        const billing = await apiFetch<BillingStatus>("/billing/status");
+        if (billing.subscriptionStatus === "active") {
+          router.push(next.startsWith("/dashboard") ? next : "/dashboard");
+        } else {
+          router.push("/onboarding");
+        }
+      } catch {
+        router.push("/onboarding");
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Ошибка входа");

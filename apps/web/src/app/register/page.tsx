@@ -52,7 +52,7 @@ export default function RegisterPage() {
         </h1>
         <p className="mt-2 text-sm text-text-secondary">
           Уже есть аккаунт?{" "}
-          <Link href="/login" className="text-accent hover:underline">
+          <Link href="/login" className="font-medium text-accent underline underline-offset-2">
             Войти
           </Link>
         </p>
@@ -100,6 +100,12 @@ export default function RegisterPage() {
         >
           {loading ? "Создание…" : "Создать аккаунт"}
         </button>
+        <Link
+          href="/login"
+          className="mt-3 block w-full rounded-[10px] border border-white/10 py-2.5 text-center text-sm text-text-primary hover:border-accent/40"
+        >
+          Уже есть аккаунт — войти
+        </Link>
       </form>
     </div>
   );

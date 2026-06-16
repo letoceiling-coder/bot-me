@@ -35,9 +35,14 @@ export default function OnboardingPage() {
       setStep(3);
       apiFetch("/billing/sync", { method: "POST" })
         .then(() => apiFetch<BillingStatus>("/billing/status"))
-        .then(setBilling);
+        .then((s) => {
+          setBilling(s);
+          if (s.subscriptionStatus === "active") {
+            router.replace("/dashboard");
+          }
+        });
     }
-  }, [searchParams]);
+  }, [searchParams, router]);
 
   async function pay() {
     setError("");

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { apiFetch, clearToken, getToken } from "@/lib/api";
+import { clearToken, fetchCurrentUser, getToken, isUnauthorized } from "@/lib/api";
 import type { AuthUser } from "@botme/shared";
 
 const nav = [
@@ -24,18 +24,18 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       router.replace("/admin/login");
       return;
     }
-    apiFetch<AuthUser>("/auth/me")
+    fetchCurrentUser()
       .then((u) => {
         if (!u.isPlatformAdmin) {
-          clearToken();
-          router.replace("/admin/login");
+          router.replace("/dashboard");
           return;
         }
         setUser(u);
       })
-      .catch(() => {
-        clearToken();
-        router.replace("/admin/login");
+      .catch((err) => {
+        if (isUnauthorized(err)) {
+          router.replace("/admin/login");
+        }
       });
   }, [router, isLoginPage]);
 

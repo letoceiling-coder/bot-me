@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { apiFetch, clearToken, getToken } from "@/lib/api";
+import { apiFetch, fetchCurrentUser, getToken, isUnauthorized } from "@/lib/api";
 import type { AuthUser, BillingStatus } from "@botme/shared";
 import { AppShell } from "@/components/app-shell";
 
@@ -16,24 +16,25 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       router.replace(`/login?next=${encodeURIComponent(pathname)}`);
       return;
     }
-    Promise.all([
-      apiFetch<AuthUser>("/auth/me"),
-      apiFetch<BillingStatus>("/billing/status"),
-    ])
-      .then(([u, billing]) => {
-        if (u.isPlatformAdmin) {
-          router.replace("/admin");
-          return;
+
+    fetchCurrentUser()
+      .then(async (u) => {
+        let billing: BillingStatus | null = null;
+        try {
+          billing = await apiFetch<BillingStatus>("/billing/status");
+        } catch {
+          /* биллинг не должен рвать сессию */
         }
-        if (billing.subscriptionStatus !== "active") {
+        if (billing && billing.subscriptionStatus !== "active") {
           router.replace("/onboarding");
           return;
         }
         setUser(u);
       })
-      .catch(() => {
-        clearToken();
-        router.replace("/login");
+      .catch((err) => {
+        if (isUnauthorized(err)) {
+          router.replace(`/login?next=${encodeURIComponent(pathname)}`);
+        }
       });
   }, [router, pathname]);
 
