@@ -29,6 +29,7 @@ export default function LoginForm() {
       );
       setToken(data.token);
       try {
+        await apiFetch("/billing/sync", { method: "POST" }).catch(() => null);
         const billing = await apiFetch<BillingStatus>("/billing/status");
         if (billing.subscriptionStatus === "active") {
           router.push(next.startsWith("/dashboard") ? next : "/dashboard");

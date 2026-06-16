@@ -17,9 +17,17 @@ export class BillingService {
   ) {}
 
   async getStatus(organizationId: string) {
-    const org = await this.prisma.organization.findUniqueOrThrow({
+    let org = await this.prisma.organization.findUniqueOrThrow({
       where: { id: organizationId },
     });
+
+    // Webhook может не дойти — подтягиваем статус из ЮKassa при каждом запросе
+    if (org.subscriptionStatus !== "active") {
+      await this.syncPayment(organizationId);
+      org = await this.prisma.organization.findUniqueOrThrow({
+        where: { id: organizationId },
+      });
+    }
 
     const tariff = await this.prisma.tariffPlan.findUnique({
       where: { slug: org.plan },
@@ -47,6 +55,14 @@ export class BillingService {
   }
 
   async createCheckout(organizationId: string, tariffSlug: string) {
+    await this.syncPayment(organizationId);
+    const org = await this.prisma.organization.findUniqueOrThrow({
+      where: { id: organizationId },
+    });
+    if (org.subscriptionStatus === "active") {
+      throw new BadRequestException("Подписка уже активна");
+    }
+
     const tariff = await this.prisma.tariffPlan.findFirst({
       where: { slug: tariffSlug, isActive: true },
     });
@@ -164,11 +180,11 @@ export class BillingService {
   }
 
   async syncPayment(organizationId: string) {
-    const pending = await this.prisma.payment.findFirst({
+    const pendingList = await this.prisma.payment.findMany({
       where: { organizationId, status: "pending" },
       orderBy: { createdAt: "desc" },
     });
-    if (!pending?.yukassaId) return { synced: false };
+    if (!pendingList.length) return { synced: false };
 
     const creds = await this.settings.getYukassaCredentials();
     if (!creds.shopId || !creds.secretKey) return { synced: false };
@@ -176,20 +192,25 @@ export class BillingService {
     const auth = Buffer.from(`${creds.shopId}:${creds.secretKey}`).toString(
       "base64",
     );
-    const res = await fetch(
-      `https://api.yookassa.ru/v3/payments/${pending.yukassaId}`,
-      { headers: { Authorization: `Basic ${auth}` } },
-    );
-    if (!res.ok) return { synced: false };
 
-    const data = (await res.json()) as { status?: string };
-    if (data.status === "succeeded") {
-      await this.handleYukassaWebhook({
-        event: "payment.succeeded",
-        object: { id: pending.yukassaId },
-      });
-      return { synced: true, status: "active" };
+    for (const pending of pendingList) {
+      if (!pending.yukassaId) continue;
+      const res = await fetch(
+        `https://api.yookassa.ru/v3/payments/${pending.yukassaId}`,
+        { headers: { Authorization: `Basic ${auth}` } },
+      );
+      if (!res.ok) continue;
+
+      const data = (await res.json()) as { status?: string };
+      if (data.status === "succeeded") {
+        await this.handleYukassaWebhook({
+          event: "payment.succeeded",
+          object: { id: pending.yukassaId },
+        });
+        return { synced: true, status: "active" };
+      }
     }
-    return { synced: true, status: data.status };
+
+    return { synced: true, status: "pending" };
   }
 }

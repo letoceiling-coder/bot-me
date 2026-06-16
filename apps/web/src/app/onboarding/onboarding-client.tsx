@@ -22,12 +22,15 @@ export default function OnboardingPage() {
       return;
     }
     apiFetch<TariffPlanDto[]>("/tariffs").then(setTariffs);
-    apiFetch<BillingStatus>("/billing/status").then((s) => {
-      setBilling(s);
-      if (s.subscriptionStatus === "active") {
-        router.replace("/dashboard");
-      }
-    });
+    apiFetch("/billing/sync", { method: "POST" })
+      .catch(() => null)
+      .then(() => apiFetch<BillingStatus>("/billing/status"))
+      .then((s) => {
+        setBilling(s);
+        if (s.subscriptionStatus === "active") {
+          router.replace("/dashboard");
+        }
+      });
   }, [router]);
 
   useEffect(() => {
