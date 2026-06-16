@@ -118,6 +118,7 @@ model Assistant {
   name           String
   presetId       String?
   systemPrompt   String   @db.Text
+  customInstructions String? @db.Text
   modelConfig    Json?
   isActive       Boolean  @default(true)
   createdAt      DateTime @default(now())
@@ -125,8 +126,51 @@ model Assistant {
 
   knowledgeBaseId String?
   knowledgeBase   KnowledgeBase? @relation(fields: [knowledgeBaseId], references: [id])
+  toolConfigs     AssistantToolConfig[]
 
   @@index([organizationId])
+}
+
+model ToolDefinition {
+  id             String   @id
+  name           String
+  description    String   @db.Text
+  category       String   @default("general")
+  parameters     Json     @default("{}")
+  settingsSchema Json     @default("{}")
+  isActive       Boolean  @default(true)
+  sortOrder      Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  assistantTools AssistantToolConfig[]
+}
+
+model PromptPreset {
+  id             String   @id
+  name           String
+  description    String?  @db.Text
+  systemPrompt   String   @db.Text
+  defaultToolIds Json     @default("[]")
+  sortOrder      Int      @default(0)
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model AssistantToolConfig {
+  id          String         @id @default(cuid())
+  assistantId String
+  assistant   Assistant      @relation(fields: [assistantId], references: [id], onDelete: Cascade)
+  toolId      String
+  tool        ToolDefinition @relation(fields: [toolId], references: [id], onDelete: Cascade)
+  enabled     Boolean        @default(true)
+  settings    Json           @default("{}")
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@unique([assistantId, toolId])
+  @@index([assistantId])
 }
 
 model KnowledgeBase {
