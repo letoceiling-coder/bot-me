@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { TariffPlanDto } from "@botme/shared";
+import { LandingAuthNav } from "@/components/landing-auth-nav";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "https://bot-me.neeklo.ru";
 
@@ -54,17 +55,7 @@ export default async function LandingPage() {
             <a href="#features" className="hover:text-text-primary">Возможности</a>
             <a href="#tariffs" className="hover:text-text-primary">Тарифы</a>
           </nav>
-          <div className="flex items-center gap-3">
-            <Link href="/login" className="text-sm text-text-secondary hover:text-accent">
-              Войти
-            </Link>
-            <Link
-              href="/register"
-              className="rounded-[10px] bg-accent px-4 py-2 text-sm font-medium text-[#042f2e]"
-            >
-              Регистрация
-            </Link>
-          </div>
+          <LandingAuthNav variant="header" />
         </div>
       </header>
 
@@ -82,20 +73,7 @@ export default async function LandingPage() {
               botme отвечает клиентам в Avito и Telegram, знает ваш прайс и не теряет
               заявки. Настройка за 15 минут без программиста.
             </p>
-            <div className="mt-8 flex flex-wrap gap-3">
-              <Link
-                href="/register"
-                className="rounded-[10px] bg-accent px-6 py-3 font-medium text-[#042f2e]"
-              >
-                Начать бесплатно
-              </Link>
-              <Link
-                href="/login"
-                className="rounded-[10px] border border-white/10 px-6 py-3 text-text-primary hover:border-accent/40"
-              >
-                Уже есть аккаунт
-              </Link>
-            </div>
+            <LandingAuthNav variant="hero" />
           </div>
           <div className="rounded-[20px] border border-white/6 bg-gradient-to-br from-surface to-elevated p-6">
             <p className="mb-4 text-xs text-text-muted">Пример диалога</p>
@@ -195,12 +173,7 @@ export default async function LandingPage() {
             Создайте аккаунт, подключите канал и загрузите базу знаний — ассистент начнёт
             работать сегодня.
           </p>
-          <Link
-            href="/register"
-            className="mt-8 inline-block rounded-[10px] bg-accent px-8 py-3 font-medium text-[#042f2e]"
-          >
-            Создать аккаунт
-          </Link>
+          <LandingAuthNav variant="footer" />
         </div>
       </section>
 
