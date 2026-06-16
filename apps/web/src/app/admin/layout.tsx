@@ -16,26 +16,32 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const router = useRouter();
   const pathname = usePathname();
   const [user, setUser] = useState<AuthUser | null>(null);
+  const isLoginPage = pathname === "/admin/login";
 
   useEffect(() => {
+    if (isLoginPage) return;
     if (!getToken()) {
-      router.replace("/login");
+      router.replace("/admin/login");
       return;
     }
     apiFetch<AuthUser>("/auth/me")
       .then((u) => {
         if (!u.isPlatformAdmin) {
           clearToken();
-          router.replace("/login");
+          router.replace("/admin/login");
           return;
         }
         setUser(u);
       })
       .catch(() => {
         clearToken();
-        router.replace("/login");
+        router.replace("/admin/login");
       });
-  }, [router]);
+  }, [router, isLoginPage]);
+
+  if (isLoginPage) {
+    return children;
+  }
 
   if (!user) {
     return (
@@ -75,7 +81,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             type="button"
             onClick={() => {
               clearToken();
-              router.push("/login");
+              router.push("/admin/login");
             }}
             className="mt-2 text-text-muted hover:text-accent"
           >

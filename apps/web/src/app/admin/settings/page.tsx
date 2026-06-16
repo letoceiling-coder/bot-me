@@ -11,6 +11,11 @@ export default function AdminSettingsPage() {
   });
   const [neeklo, setNeeklo] = useState({ apiKey: "", baseUrl: "https://api.neeklo.ru" });
   const [msg, setMsg] = useState("");
+  const [testResult, setTestResult] = useState<{
+    yukassa: { ok: boolean; message: string };
+    neeklo: { ok: boolean; message: string };
+  } | null>(null);
+  const [testing, setTesting] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -52,12 +57,48 @@ export default function AdminSettingsPage() {
     }
   }
 
+  async function testKeys() {
+    setTesting(true);
+    setTestResult(null);
+    try {
+      const result = await apiFetch<{
+        yukassa: { ok: boolean; message: string };
+        neeklo: { ok: boolean; message: string };
+      }>("/admin/settings/test", { method: "POST" });
+      setTestResult(result);
+    } catch (err) {
+      setMsg(err instanceof Error ? err.message : "Ошибка проверки");
+    } finally {
+      setTesting(false);
+    }
+  }
+
   return (
     <div className="space-y-8 max-w-xl">
-      <h1 className="font-[family-name:var(--font-display)] text-2xl font-bold">
-        Настройки платформы
-      </h1>
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <h1 className="font-[family-name:var(--font-display)] text-2xl font-bold">
+          Настройки платформы
+        </h1>
+        <button
+          type="button"
+          onClick={testKeys}
+          disabled={testing}
+          className="rounded-[10px] border border-white/10 px-4 py-2 text-sm hover:border-accent/40 disabled:opacity-50"
+        >
+          {testing ? "Проверка…" : "Проверить ключи"}
+        </button>
+      </div>
       {msg && <p className="text-sm text-accent">{msg}</p>}
+      {testResult && (
+        <div className="space-y-2 rounded-[14px] border border-white/6 bg-surface p-4 text-sm">
+          <p className={testResult.yukassa.ok ? "text-green-400" : "text-red-400"}>
+            ЮKassa: {testResult.yukassa.message}
+          </p>
+          <p className={testResult.neeklo.ok ? "text-green-400" : "text-red-400"}>
+            Neeklo: {testResult.neeklo.message}
+          </p>
+        </div>
+      )}
 
       <form onSubmit={saveYukassa} className="space-y-3 rounded-[14px] border border-white/6 bg-surface p-6">
         <h2 className="font-semibold">ЮKassa</h2>

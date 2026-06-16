@@ -81,6 +81,71 @@ export class SettingsAdminService {
     return (await this.getPlain(KEYS.neekloBaseUrl)) ?? "https://api.neeklo.ru";
   }
 
+  async testConnections() {
+    const [yukassa, neekloKey, neekloBase] = await Promise.all([
+      this.getYukassaCredentials(),
+      this.getNeekloApiKey(),
+      this.getNeekloBaseUrl(),
+    ]);
+
+    const results: {
+      yukassa: { ok: boolean; message: string };
+      neeklo: { ok: boolean; message: string };
+    } = {
+      yukassa: { ok: false, message: "Не настроено" },
+      neeklo: { ok: false, message: "Не настроено" },
+    };
+
+    if (yukassa.shopId && yukassa.secretKey) {
+      try {
+        const auth = Buffer.from(`${yukassa.shopId}:${yukassa.secretKey}`).toString("base64");
+        const res = await fetch("https://api.yookassa.ru/v3/me", {
+          headers: { Authorization: `Basic ${auth}` },
+        });
+        if (res.ok) {
+          const data = (await res.json()) as { account_id?: string };
+          results.yukassa = {
+            ok: true,
+            message: `Подключено (shop ${data.account_id ?? yukassa.shopId}${yukassa.sandbox ? ", sandbox" : ""})`,
+          };
+        } else {
+          results.yukassa = {
+            ok: false,
+            message: `Ошибка ЮKassa: HTTP ${res.status}`,
+          };
+        }
+      } catch (err) {
+        results.yukassa = {
+          ok: false,
+          message: err instanceof Error ? err.message : "Ошибка ЮKassa",
+        };
+      }
+    }
+
+    if (neekloKey) {
+      try {
+        const base = neekloBase.replace(/\/$/, "");
+        const res = await fetch(`${base}/v1/models`, {
+          headers: { "x-api-key": neekloKey },
+        });
+        if (res.ok) {
+          results.neeklo = { ok: true, message: "API-ключ принят, /v1/models доступен" };
+        } else if (res.status === 401) {
+          results.neeklo = { ok: false, message: "Neeklo: неверный API-ключ (401)" };
+        } else {
+          results.neeklo = { ok: false, message: `Neeklo: HTTP ${res.status}` };
+        }
+      } catch (err) {
+        results.neeklo = {
+          ok: false,
+          message: err instanceof Error ? err.message : "Ошибка Neeklo",
+        };
+      }
+    }
+
+    return results;
+  }
+
   private async getPlain(key: string) {
     const row = await this.prisma.systemSetting.findUnique({ where: { key } });
     return row?.value ?? null;

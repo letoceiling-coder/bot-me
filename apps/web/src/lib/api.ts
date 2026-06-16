@@ -30,7 +30,10 @@ export async function apiFetch<T>(
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.message ?? `Ошибка ${res.status}`);
+    const message = Array.isArray(err.message)
+      ? err.message.join(", ")
+      : err.message ?? `Ошибка ${res.status}`;
+    throw new Error(message);
   }
   return res.json() as Promise<T>;
 }

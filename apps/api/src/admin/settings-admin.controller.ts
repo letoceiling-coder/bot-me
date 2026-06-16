@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Put, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Post, Put, UseGuards } from "@nestjs/common";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { PlatformAdminGuard } from "./platform-admin.guard";
 import { SettingsAdminService } from "./settings-admin.service";
@@ -27,5 +27,10 @@ export class SettingsAdminController {
   @Put("neeklo")
   setNeeklo(@Body() body: NeekloSettingsDto) {
     return this.settings.setNeeklo(body);
+  }
+
+  @Post("test")
+  testConnections() {
+    return this.settings.testConnections();
   }
 }
